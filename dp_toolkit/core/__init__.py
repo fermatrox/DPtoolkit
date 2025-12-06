@@ -11,10 +11,11 @@ from dp_toolkit.core.mechanisms import (
     validate_delta,
     validate_sensitivity,
     validate_bounds,
-    # Sensitivity calculation
+    # Sensitivity / Scale calculation
     calculate_sensitivity_bounded,
     calculate_scale_laplace,
     calculate_scale_gaussian,
+    calculate_scale_exponential,
     calculate_rho_from_epsilon_delta,
     calculate_epsilon_from_rho_delta,
     # Classes
@@ -22,13 +23,19 @@ from dp_toolkit.core.mechanisms import (
     DPMechanism,
     LaplaceMechanism,
     GaussianMechanism,
-    # Convenience functions
+    ExponentialMechanism,
+    # Convenience functions - Laplace
     create_laplace_mechanism,
     add_laplace_noise,
     add_laplace_noise_array,
+    # Convenience functions - Gaussian
     create_gaussian_mechanism,
     add_gaussian_noise,
     add_gaussian_noise_array,
+    # Convenience functions - Exponential
+    create_exponential_mechanism,
+    select_category,
+    sample_categories,
 )
 
 __all__ = [
@@ -46,6 +53,7 @@ __all__ = [
     "calculate_sensitivity_bounded",
     "calculate_scale_laplace",
     "calculate_scale_gaussian",
+    "calculate_scale_exponential",
     "calculate_rho_from_epsilon_delta",
     "calculate_epsilon_from_rho_delta",
     # Classes
@@ -53,11 +61,17 @@ __all__ = [
     "DPMechanism",
     "LaplaceMechanism",
     "GaussianMechanism",
-    # Convenience functions
+    "ExponentialMechanism",
+    # Convenience functions - Laplace
     "create_laplace_mechanism",
     "add_laplace_noise",
     "add_laplace_noise_array",
+    # Convenience functions - Gaussian
     "create_gaussian_mechanism",
     "add_gaussian_noise",
     "add_gaussian_noise_array",
+    # Convenience functions - Exponential
+    "create_exponential_mechanism",
+    "select_category",
+    "sample_categories",
 ]

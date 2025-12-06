@@ -132,7 +132,27 @@
   - (ε,δ)-DP guarantee verification
   - Gaussian vs Laplace comparison tests
   - Edge cases (min/max delta, sensitivity)
-- **Commit:** (pending)
+- **Commit:** `2d6c470`
+
+#### Step 3.3: Exponential Mechanism
+- Extended `dp_toolkit/core/mechanisms.py` with:
+- `calculate_scale_exponential()` for scale = 2 * sensitivity / epsilon
+- `ExponentialMechanism` class wrapping OpenDP:
+  - `select()` to select single category based on utility scores
+  - `select_index()` to return index instead of category
+  - `sample()` to sample multiple categories with replacement
+  - `sample_indices()` to sample multiple indices
+  - Selection probability proportional to exp(ε * utility / (2 * sensitivity))
+  - Support for list, numpy array, and pandas Series scores
+- Convenience functions: `create_exponential_mechanism()`, `select_category()`, `sample_categories()`
+- 38 new tests (364 total) including:
+  - Scale calculation tests
+  - Selection bias verification (higher scores more likely)
+  - Uniform selection with equal scores
+  - Higher epsilon = more deterministic selection
+  - Privacy guarantee verification
+  - Edge cases (min/max epsilon, two categories, many categories)
+- **Commit:** `5db5958`
 
 ### Test Summary
 | Step | New Tests | Total Tests |
@@ -145,18 +165,20 @@
 | 2.3 | 42 | 215 |
 | 3.1 | 55 | 270 |
 | 3.2 | 56 | 326 |
+| 3.3 | 38 | 364 |
 
 ### Current State
-- All 326 tests passing
+- All 364 tests passing
 - Linting clean (flake8, black, mypy)
 - Phase 1 (Foundation) complete
 - Phase 2 (Statistical Profiling) complete
-- Phase 3 (DP Mechanisms) in progress
+- Phase 3 (DP Mechanisms) complete
 
 ### Next Step
-**Step 3.3: Exponential Mechanism**
-- Implement exponential mechanism for categorical data
-- ε-DP guarantees for discrete outputs
+**Step 4.1: Privacy Budget Manager**
+- Implement global budget tracking
+- Budget allocation across multiple queries
+- Budget composition (basic, advanced sequential)
 
 ### Open Issues / Decisions Needed
 None currently.

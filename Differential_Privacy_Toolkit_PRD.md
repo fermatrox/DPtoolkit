@@ -3,7 +3,7 @@
 ### Privacy-Preserving Data Analysis for Healthcare
 
 **Version:** 1.0  
-**Date:** December 2024  
+**Date:** December 2025  
 **Status:** Draft
 
 ---

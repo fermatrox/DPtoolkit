@@ -3,13 +3,13 @@
 This module provides DP mechanisms wrapped around OpenDP, including:
 - Laplace mechanism for bounded numeric data (ε-DP)
 - Gaussian mechanism for unbounded numeric data ((ε,δ)-DP)
-- Exponential mechanism for categorical data (ε-DP) [future]
+- Exponential mechanism for categorical data (ε-DP)
 """
 
 import math
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
-from typing import Optional, Union
+from typing import Any, List, Optional, Sequence, Union
 
 import numpy as np
 import opendp.prelude as dp
@@ -227,6 +227,26 @@ def calculate_epsilon_from_rho_delta(rho: float, delta: float) -> float:
         Epsilon for (ε,δ)-DP.
     """
     return rho + 2.0 * math.sqrt(rho * math.log(1.0 / delta))
+
+
+def calculate_scale_exponential(sensitivity: float, epsilon: float) -> float:
+    """Calculate exponential mechanism scale from sensitivity and epsilon.
+
+    For exponential mechanism: scale = 2 * sensitivity / epsilon
+
+    The exponential mechanism selects an item with probability proportional
+    to exp(epsilon * utility / (2 * sensitivity)).
+
+    Args:
+        sensitivity: L∞ sensitivity of the utility function.
+        epsilon: Privacy parameter.
+
+    Returns:
+        Scale parameter for the exponential mechanism.
+    """
+    validate_sensitivity(sensitivity)
+    validate_epsilon(epsilon)
+    return 2.0 * sensitivity / epsilon
 
 
 # =============================================================================
@@ -709,6 +729,235 @@ class GaussianMechanism(DPMechanism):
 
 
 # =============================================================================
+# Exponential Mechanism
+# =============================================================================
+
+
+class ExponentialMechanism:
+    """Exponential mechanism for ε-differential privacy on categorical data.
+
+    The exponential mechanism selects an item from a set of candidates
+    based on utility scores, with probability proportional to
+    exp(ε * utility / (2 * sensitivity)).
+
+    This is ideal for:
+    - Selecting a category from categorical data
+    - Private argmax/argmin operations
+    - Any selection task where the output is discrete
+
+    The mechanism provides pure ε-differential privacy.
+
+    Attributes:
+        categories: List of category labels.
+        epsilon: Privacy parameter.
+        sensitivity: L∞ sensitivity of the utility function.
+    """
+
+    def __init__(
+        self,
+        categories: Sequence[Any],
+        epsilon: float,
+        sensitivity: float = 1.0,
+    ) -> None:
+        """Initialize the exponential mechanism.
+
+        Args:
+            categories: List of category labels to select from.
+            epsilon: Privacy parameter (ε). Must be in [0.01, 10.0].
+            sensitivity: L∞ sensitivity of the utility function.
+                Default is 1.0 (appropriate when utility is a count
+                and one person contributes at most 1 to any count).
+
+        Raises:
+            ValueError: If parameters are invalid.
+        """
+        if len(categories) < 2:
+            raise ValueError(
+                f"Need at least 2 categories, got {len(categories)}"
+            )
+
+        validate_epsilon(epsilon)
+        validate_sensitivity(sensitivity)
+
+        self._categories: List[Any] = list(categories)
+        self._epsilon = float(epsilon)
+        self._sensitivity = float(sensitivity)
+        self._scale = calculate_scale_exponential(sensitivity, epsilon)
+        self._n_categories = len(self._categories)
+
+        # Create OpenDP mechanism
+        self._input_domain = dp.vector_domain(
+            dp.atom_domain(T=float, nan=False)
+        )
+        self._input_metric = dp.linf_distance(T=float)
+        self._mechanism = dp.m.make_noisy_max(
+            self._input_domain,
+            self._input_metric,
+            dp.max_divergence(),
+            scale=self._scale,
+        )
+
+    @property
+    def categories(self) -> List[Any]:
+        """Get the list of categories."""
+        return self._categories.copy()
+
+    @property
+    def n_categories(self) -> int:
+        """Get the number of categories."""
+        return self._n_categories
+
+    @property
+    def epsilon(self) -> float:
+        """Get epsilon parameter."""
+        return self._epsilon
+
+    @property
+    def sensitivity(self) -> float:
+        """Get the L∞ sensitivity."""
+        return self._sensitivity
+
+    @property
+    def scale(self) -> float:
+        """Get the exponential mechanism scale parameter."""
+        return self._scale
+
+    def _validate_scores(
+        self, scores: Union[np.ndarray, pd.Series, list]
+    ) -> List[float]:
+        """Validate and convert scores to list of floats."""
+        if isinstance(scores, pd.Series):
+            score_list = scores.tolist()
+        elif isinstance(scores, np.ndarray):
+            score_list = scores.tolist()
+        else:
+            score_list = list(scores)
+
+        if len(score_list) != self._n_categories:
+            raise ValueError(
+                f"Expected {self._n_categories} scores, "
+                f"got {len(score_list)}"
+            )
+
+        # Convert to float and check for NaN
+        result = []
+        for i, s in enumerate(score_list):
+            if not isinstance(s, (int, float)):
+                raise TypeError(
+                    f"Score at index {i} must be numeric, got {type(s)}"
+                )
+            if np.isnan(s):
+                raise ValueError(f"Score at index {i} is NaN")
+            result.append(float(s))
+
+        return result
+
+    def select(self, scores: Union[np.ndarray, pd.Series, list]) -> Any:
+        """Select a category based on utility scores.
+
+        Selects a category with probability proportional to
+        exp(ε * score / (2 * sensitivity)).
+
+        Args:
+            scores: Utility scores for each category. Higher scores
+                mean higher probability of selection. Must have same
+                length as categories.
+
+        Returns:
+            The selected category label.
+
+        Raises:
+            ValueError: If scores length doesn't match categories.
+        """
+        score_list = self._validate_scores(scores)
+        idx = self._mechanism(score_list)
+        return self._categories[idx]
+
+    def select_index(self, scores: Union[np.ndarray, pd.Series, list]) -> int:
+        """Select a category index based on utility scores.
+
+        Same as select(), but returns the index instead of the category.
+
+        Args:
+            scores: Utility scores for each category.
+
+        Returns:
+            The index of the selected category (0-indexed).
+        """
+        score_list = self._validate_scores(scores)
+        return int(self._mechanism(score_list))
+
+    def sample(
+        self,
+        scores: Union[np.ndarray, pd.Series, list],
+        n: int = 1,
+    ) -> List[Any]:
+        """Sample multiple categories based on utility scores.
+
+        Each sample is an independent draw from the exponential mechanism.
+
+        Note: Each call to this method uses ε privacy budget per sample.
+        For n samples, the total privacy cost is n * ε under sequential
+        composition.
+
+        Args:
+            scores: Utility scores for each category.
+            n: Number of samples to draw.
+
+        Returns:
+            List of n selected category labels.
+
+        Raises:
+            ValueError: If n < 1 or scores are invalid.
+        """
+        if n < 1:
+            raise ValueError(f"n must be at least 1, got {n}")
+
+        score_list = self._validate_scores(scores)
+        return [
+            self._categories[self._mechanism(score_list)] for _ in range(n)
+        ]
+
+    def sample_indices(
+        self,
+        scores: Union[np.ndarray, pd.Series, list],
+        n: int = 1,
+    ) -> List[int]:
+        """Sample multiple category indices based on utility scores.
+
+        Same as sample(), but returns indices instead of categories.
+
+        Args:
+            scores: Utility scores for each category.
+            n: Number of samples to draw.
+
+        Returns:
+            List of n selected category indices.
+        """
+        if n < 1:
+            raise ValueError(f"n must be at least 1, got {n}")
+
+        score_list = self._validate_scores(scores)
+        return [int(self._mechanism(score_list)) for _ in range(n)]
+
+    def get_privacy_usage(self) -> PrivacyUsage:
+        """Get the privacy budget used per selection.
+
+        Returns:
+            PrivacyUsage with epsilon (pure ε-DP).
+        """
+        return PrivacyUsage(epsilon=self._epsilon)
+
+    def __repr__(self) -> str:
+        """String representation."""
+        return (
+            f"ExponentialMechanism(n_categories={self._n_categories}, "
+            f"epsilon={self._epsilon}, sensitivity={self._sensitivity}, "
+            f"scale={self._scale:.4f})"
+        )
+
+
+# =============================================================================
 # Convenience Functions
 # =============================================================================
 
@@ -845,3 +1094,77 @@ def add_gaussian_noise_array(
         sensitivity=sensitivity, epsilon=epsilon, delta=delta
     )
     return mechanism.release_array(values)
+
+
+def create_exponential_mechanism(
+    categories: Sequence[Any],
+    epsilon: float,
+    sensitivity: float = 1.0,
+) -> ExponentialMechanism:
+    """Create an exponential mechanism for categorical data.
+
+    Args:
+        categories: List of category labels to select from.
+        epsilon: Privacy parameter (ε).
+        sensitivity: L∞ sensitivity of the utility function.
+
+    Returns:
+        Configured ExponentialMechanism instance.
+    """
+    return ExponentialMechanism(
+        categories=categories, epsilon=epsilon, sensitivity=sensitivity
+    )
+
+
+def select_category(
+    categories: Sequence[Any],
+    scores: Union[np.ndarray, pd.Series, list],
+    epsilon: float,
+    sensitivity: float = 1.0,
+) -> Any:
+    """Select a category based on utility scores using exponential mechanism.
+
+    Convenience function that creates a mechanism and applies it.
+
+    Args:
+        categories: List of category labels to select from.
+        scores: Utility scores for each category.
+        epsilon: Privacy parameter (ε).
+        sensitivity: L∞ sensitivity of the utility function.
+
+    Returns:
+        Selected category satisfying ε-differential privacy.
+    """
+    mechanism = ExponentialMechanism(
+        categories=categories, epsilon=epsilon, sensitivity=sensitivity
+    )
+    return mechanism.select(scores)
+
+
+def sample_categories(
+    categories: Sequence[Any],
+    scores: Union[np.ndarray, pd.Series, list],
+    n: int,
+    epsilon: float,
+    sensitivity: float = 1.0,
+) -> List[Any]:
+    """Sample multiple categories based on utility scores.
+
+    Convenience function that creates a mechanism and samples n times.
+
+    Note: Total privacy cost is n * epsilon under sequential composition.
+
+    Args:
+        categories: List of category labels to select from.
+        scores: Utility scores for each category.
+        n: Number of samples to draw.
+        epsilon: Privacy parameter (ε) per sample.
+        sensitivity: L∞ sensitivity of the utility function.
+
+    Returns:
+        List of n selected categories satisfying ε-DP per selection.
+    """
+    mechanism = ExponentialMechanism(
+        categories=categories, epsilon=epsilon, sensitivity=sensitivity
+    )
+    return mechanism.sample(scores, n)
