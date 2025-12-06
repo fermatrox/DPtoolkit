@@ -70,9 +70,16 @@ class DatasetInfo:
 class DataLoader:
     """Load datasets from files with automatic type detection.
 
-    Supports CSV files with automatic encoding detection and
-    column type inference for differential privacy mechanism selection.
+    Supports CSV, Excel, and Parquet files with automatic format detection
+    and column type inference for differential privacy mechanism selection.
     """
+
+    # Supported file extensions by format
+    FORMAT_EXTENSIONS = {
+        "csv": [".csv", ".tsv", ".txt"],
+        "excel": [".xlsx", ".xls", ".xlsm", ".xlsb"],
+        "parquet": [".parquet", ".pq"],
+    }
 
     # Common encodings to try in order
     ENCODINGS = ["utf-8", "latin-1", "cp1252", "iso-8859-1"]
@@ -85,6 +92,66 @@ class DataLoader:
     def __init__(self) -> None:
         """Initialize the DataLoader."""
         pass
+
+    def load(
+        self,
+        file_path: Union[str, Path],
+        file_format: Optional[str] = None,
+        **kwargs,
+    ) -> DatasetInfo:
+        """Load a file with automatic format detection.
+
+        Args:
+            file_path: Path to the file.
+            file_format: Explicit format ('csv', 'excel', 'parquet').
+                If None, detect from file extension.
+            **kwargs: Additional arguments passed to the format-specific loader.
+
+        Returns:
+            DatasetInfo containing the loaded data and metadata.
+
+        Raises:
+            FileNotFoundError: If the file does not exist.
+            ValueError: If the format cannot be detected or is unsupported.
+        """
+        file_path = Path(file_path)
+        if not file_path.exists():
+            raise FileNotFoundError(f"File not found: {file_path}")
+
+        # Detect format if not specified
+        if file_format is None:
+            file_format = self._detect_format(file_path)
+
+        # Route to appropriate loader
+        if file_format == "csv":
+            return self.load_csv(file_path, **kwargs)
+        elif file_format == "excel":
+            return self.load_excel(file_path, **kwargs)
+        elif file_format == "parquet":
+            return self.load_parquet(file_path, **kwargs)
+        else:
+            raise ValueError(f"Unsupported file format: {file_format}")
+
+    def _detect_format(self, file_path: Path) -> str:
+        """Detect file format from extension.
+
+        Args:
+            file_path: Path to the file.
+
+        Returns:
+            Format string ('csv', 'excel', 'parquet').
+
+        Raises:
+            ValueError: If format cannot be detected.
+        """
+        ext = file_path.suffix.lower()
+        for fmt, extensions in self.FORMAT_EXTENSIONS.items():
+            if ext in extensions:
+                return fmt
+        raise ValueError(
+            f"Cannot detect format for extension '{ext}'. "
+            f"Supported: {list(self.FORMAT_EXTENSIONS.keys())}"
+        )
 
     def load_csv(
         self,
@@ -119,6 +186,91 @@ class DataLoader:
             file_path=file_path,
             file_format="csv",
             encoding=detected_encoding,
+        )
+
+    def load_excel(
+        self,
+        file_path: Union[str, Path],
+        sheet_name: Union[str, int, None] = 0,
+        **kwargs,
+    ) -> DatasetInfo:
+        """Load an Excel file.
+
+        Args:
+            file_path: Path to the Excel file.
+            sheet_name: Sheet to load. Can be:
+                - int: Sheet index (0-based)
+                - str: Sheet name
+                - None: Load first sheet
+            **kwargs: Additional arguments passed to pandas.read_excel.
+
+        Returns:
+            DatasetInfo containing the loaded data and metadata.
+
+        Raises:
+            FileNotFoundError: If the file does not exist.
+            ValueError: If the sheet does not exist.
+        """
+        file_path = Path(file_path)
+        if not file_path.exists():
+            raise FileNotFoundError(f"File not found: {file_path}")
+
+        df = pd.read_excel(file_path, sheet_name=sheet_name, **kwargs)
+
+        return self._create_dataset_info(
+            df=df,
+            file_path=file_path,
+            file_format="excel",
+            encoding=None,  # Excel files don't have text encoding
+        )
+
+    def get_excel_sheet_names(self, file_path: Union[str, Path]) -> list[str]:
+        """Get list of sheet names in an Excel file.
+
+        Args:
+            file_path: Path to the Excel file.
+
+        Returns:
+            List of sheet names.
+
+        Raises:
+            FileNotFoundError: If the file does not exist.
+        """
+        file_path = Path(file_path)
+        if not file_path.exists():
+            raise FileNotFoundError(f"File not found: {file_path}")
+
+        with pd.ExcelFile(file_path) as excel_file:
+            return list(excel_file.sheet_names)
+
+    def load_parquet(
+        self,
+        file_path: Union[str, Path],
+        **kwargs,
+    ) -> DatasetInfo:
+        """Load a Parquet file.
+
+        Args:
+            file_path: Path to the Parquet file.
+            **kwargs: Additional arguments passed to pandas.read_parquet.
+
+        Returns:
+            DatasetInfo containing the loaded data and metadata.
+
+        Raises:
+            FileNotFoundError: If the file does not exist.
+        """
+        file_path = Path(file_path)
+        if not file_path.exists():
+            raise FileNotFoundError(f"File not found: {file_path}")
+
+        df = pd.read_parquet(file_path, **kwargs)
+
+        return self._create_dataset_info(
+            df=df,
+            file_path=file_path,
+            file_format="parquet",
+            encoding=None,  # Parquet is binary
         )
 
     def _read_csv_with_encoding(
@@ -318,6 +470,26 @@ class DataLoader:
             return False
 
 
+def load(
+    file_path: Union[str, Path],
+    file_format: Optional[str] = None,
+    **kwargs,
+) -> DatasetInfo:
+    """Convenience function to load a file with automatic format detection.
+
+    Args:
+        file_path: Path to the file.
+        file_format: Explicit format ('csv', 'excel', 'parquet').
+            If None, detect from file extension.
+        **kwargs: Additional arguments passed to the format-specific loader.
+
+    Returns:
+        DatasetInfo containing the loaded data and metadata.
+    """
+    loader = DataLoader()
+    return loader.load(file_path, file_format=file_format, **kwargs)
+
+
 def load_csv(
     file_path: Union[str, Path],
     encoding: Optional[str] = None,
@@ -335,3 +507,39 @@ def load_csv(
     """
     loader = DataLoader()
     return loader.load_csv(file_path, encoding=encoding, **kwargs)
+
+
+def load_excel(
+    file_path: Union[str, Path],
+    sheet_name: Union[str, int, None] = 0,
+    **kwargs,
+) -> DatasetInfo:
+    """Convenience function to load an Excel file.
+
+    Args:
+        file_path: Path to the Excel file.
+        sheet_name: Sheet to load (index, name, or None for first).
+        **kwargs: Additional arguments passed to pandas.read_excel.
+
+    Returns:
+        DatasetInfo containing the loaded data and metadata.
+    """
+    loader = DataLoader()
+    return loader.load_excel(file_path, sheet_name=sheet_name, **kwargs)
+
+
+def load_parquet(
+    file_path: Union[str, Path],
+    **kwargs,
+) -> DatasetInfo:
+    """Convenience function to load a Parquet file.
+
+    Args:
+        file_path: Path to the Parquet file.
+        **kwargs: Additional arguments passed to pandas.read_parquet.
+
+    Returns:
+        DatasetInfo containing the loaded data and metadata.
+    """
+    loader = DataLoader()
+    return loader.load_parquet(file_path, **kwargs)
