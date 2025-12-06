@@ -1,0 +1,14 @@
+# Development dependencies for DPtoolkit
+-r requirements.txt
+
+# Testing
+pytest>=7.4
+pytest-cov>=4.1
+
+# Linting & Formatting
+flake8>=6.1
+black>=23.9
+mypy>=1.5
+
+# Type stubs
+pandas-stubs>=2.0
