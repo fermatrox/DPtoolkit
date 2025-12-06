@@ -183,6 +183,39 @@
   - Edge cases
 - **Commit:** `8233326`
 
+#### Step 4.1: Column Transformer
+- Implemented `dp_toolkit/data/transformer.py` with:
+- `MechanismType` enum (LAPLACE, GAUSSIAN, EXPONENTIAL)
+- `TransformColumnType` enum (NUMERIC_BOUNDED, NUMERIC_UNBOUNDED, CATEGORICAL, DATE)
+- `ColumnConfig` dataclass for per-column configuration
+- `TransformResult` dataclass with:
+  - Transformed data, original dtype, column type
+  - Mechanism type, privacy usage, null count
+  - Bounds and metadata
+- `ColumnTransformer` class:
+  - `detect_column_type()` - automatic type detection
+  - `transform_numeric_bounded()` - Laplace mechanism for bounded numeric
+  - `transform_numeric_unbounded()` - Gaussian mechanism for unbounded numeric
+  - `transform_categorical()` - Exponential mechanism for categorical
+  - `transform_date()` - Epoch conversion + Laplace for datetime
+  - `transform()` - Generic entry point with auto-detection
+- Key features:
+  - Null preservation (nulls pass through unchanged)
+  - Type preservation (integers rounded after noise)
+  - Date handling via epoch conversion (days or seconds)
+  - Configurable epsilon, bounds, sensitivity
+- Convenience functions: `transform_numeric()`, `transform_categorical()`, `transform_date()`
+- 64 new tests (502 total) including:
+  - Configuration validation tests
+  - Type detection tests
+  - Numeric bounded/unbounded transformation tests
+  - Categorical transformation tests
+  - Date transformation tests
+  - Generic transform tests
+  - Privacy guarantee tests
+  - Edge cases (empty series, single value, nullable int)
+- Added `.flake8` config file for consistent linting (max-line-length=88)
+
 ### Test Summary
 | Step | New Tests | Total Tests |
 |------|-----------|-------------|
@@ -196,19 +229,22 @@
 | 3.2 | 56 | 326 |
 | 3.3 | 38 | 364 |
 | 3.4 | 74 | 438 |
+| 4.1 | 64 | 502 |
 
 ### Current State
-- All 438 tests passing
+- All 502 tests passing
 - Linting clean (flake8, black, mypy)
 - Phase 1 (Foundation) complete
 - Phase 2 (Statistical Profiling) complete
 - Phase 3 (DP Mechanisms) complete
+- Phase 4 Step 4.1 (Column Transformer) complete
 
 ### Next Step
-**Step 4.1: Data Transformation Pipeline**
-- Implement DP transformation for numeric columns
-- Implement DP transformation for categorical columns
-- Unified transformation interface
+**Step 4.2: Dataset Transformer**
+- Process all columns based on config
+- Support: Protect, Passthrough, Exclude modes
+- Global vs per-column epsilon
+- Progress callback for UI
 
 ### Open Issues / Decisions Needed
 None currently.

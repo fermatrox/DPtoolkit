@@ -92,9 +92,7 @@ def validate_sensitivity(sensitivity: float) -> None:
         ValueError: If sensitivity is not positive.
     """
     if not isinstance(sensitivity, (int, float)):
-        raise TypeError(
-            f"Sensitivity must be a number, got {type(sensitivity)}"
-        )
+        raise TypeError(f"Sensitivity must be a number, got {type(sensitivity)}")
     if sensitivity <= 0:
         raise ValueError(f"Sensitivity must be positive, got {sensitivity}")
     if np.isnan(sensitivity):
@@ -113,9 +111,7 @@ def validate_bounds(lower: float, upper: float) -> None:
     Raises:
         ValueError: If bounds are invalid.
     """
-    if not isinstance(lower, (int, float)) or not isinstance(
-        upper, (int, float)
-    ):
+    if not isinstance(lower, (int, float)) or not isinstance(upper, (int, float)):
         raise TypeError("Bounds must be numeric")
     if np.isnan(lower) or np.isnan(upper):
         raise ValueError("Bounds cannot be NaN")
@@ -189,9 +185,7 @@ def calculate_rho_from_epsilon_delta(epsilon: float, delta: float) -> float:
     return x * x
 
 
-def calculate_scale_gaussian(
-    sensitivity: float, epsilon: float, delta: float
-) -> float:
+def calculate_scale_gaussian(sensitivity: float, epsilon: float, delta: float) -> float:
     """Calculate Gaussian scale (std dev) from sensitivity and (ε,δ).
 
     Uses zCDP-based calculation for exact epsilon targeting:
@@ -288,9 +282,7 @@ class DPMechanism(ABC):
         pass
 
     @abstractmethod
-    def release_array(
-        self, values: Union[np.ndarray, pd.Series, list]
-    ) -> np.ndarray:
+    def release_array(self, values: Union[np.ndarray, pd.Series, list]) -> np.ndarray:
         """Apply the mechanism to an array of values.
 
         Args:
@@ -379,9 +371,7 @@ class LaplaceMechanism(DPMechanism):
         )
 
         # Create OpenDP mechanism for vector values
-        self._vector_domain = dp.vector_domain(
-            dp.atom_domain(T=float, nan=False)
-        )
+        self._vector_domain = dp.vector_domain(dp.atom_domain(T=float, nan=False))
         self._vector_metric = dp.l1_distance(T=float)
         self._vector_mechanism = dp.m.make_laplace(
             self._vector_domain,
@@ -433,9 +423,7 @@ class LaplaceMechanism(DPMechanism):
 
         return float(self._scalar_mechanism(float(value)))
 
-    def release_array(
-        self, values: Union[np.ndarray, pd.Series, list]
-    ) -> np.ndarray:
+    def release_array(self, values: Union[np.ndarray, pd.Series, list]) -> np.ndarray:
         """Apply Laplace mechanism to an array of values.
 
         Each value in the array receives independent Laplace noise.
@@ -485,9 +473,7 @@ class LaplaceMechanism(DPMechanism):
         """
         return float(np.clip(value, self._lower, self._upper))
 
-    def clamp_array(
-        self, values: Union[np.ndarray, pd.Series, list]
-    ) -> np.ndarray:
+    def clamp_array(self, values: Union[np.ndarray, pd.Series, list]) -> np.ndarray:
         """Clamp an array of values to the mechanism's bounds.
 
         Args:
@@ -606,9 +592,7 @@ class GaussianMechanism(DPMechanism):
         )
 
         # Create OpenDP mechanism for vector values
-        self._vector_domain = dp.vector_domain(
-            dp.atom_domain(T=float, nan=False)
-        )
+        self._vector_domain = dp.vector_domain(dp.atom_domain(T=float, nan=False))
         self._vector_metric = dp.l2_distance(T=float)
         self._vector_mechanism = dp.m.make_gaussian(
             self._vector_domain,
@@ -660,9 +644,7 @@ class GaussianMechanism(DPMechanism):
 
         return float(self._scalar_mechanism(float(value)))
 
-    def release_array(
-        self, values: Union[np.ndarray, pd.Series, list]
-    ) -> np.ndarray:
+    def release_array(self, values: Union[np.ndarray, pd.Series, list]) -> np.ndarray:
         """Apply Gaussian mechanism to an array of values.
 
         Each value in the array receives independent Gaussian noise.
@@ -701,9 +683,7 @@ class GaussianMechanism(DPMechanism):
         """
         return PrivacyUsage(epsilon=self._epsilon, delta=self._delta)
 
-    def get_achieved_epsilon(
-        self, target_delta: Optional[float] = None
-    ) -> float:
+    def get_achieved_epsilon(self, target_delta: Optional[float] = None) -> float:
         """Calculate achieved epsilon for a given delta.
 
         This converts the zCDP guarantee to (ε,δ)-DP for any delta.
@@ -772,9 +752,7 @@ class ExponentialMechanism:
             ValueError: If parameters are invalid.
         """
         if len(categories) < 2:
-            raise ValueError(
-                f"Need at least 2 categories, got {len(categories)}"
-            )
+            raise ValueError(f"Need at least 2 categories, got {len(categories)}")
 
         validate_epsilon(epsilon)
         validate_sensitivity(sensitivity)
@@ -786,9 +764,7 @@ class ExponentialMechanism:
         self._n_categories = len(self._categories)
 
         # Create OpenDP mechanism
-        self._input_domain = dp.vector_domain(
-            dp.atom_domain(T=float, nan=False)
-        )
+        self._input_domain = dp.vector_domain(dp.atom_domain(T=float, nan=False))
         self._input_metric = dp.linf_distance(T=float)
         self._mechanism = dp.m.make_noisy_max(
             self._input_domain,
@@ -835,17 +811,14 @@ class ExponentialMechanism:
 
         if len(score_list) != self._n_categories:
             raise ValueError(
-                f"Expected {self._n_categories} scores, "
-                f"got {len(score_list)}"
+                f"Expected {self._n_categories} scores, " f"got {len(score_list)}"
             )
 
         # Convert to float and check for NaN
         result = []
         for i, s in enumerate(score_list):
             if not isinstance(s, (int, float)):
-                raise TypeError(
-                    f"Score at index {i} must be numeric, got {type(s)}"
-                )
+                raise TypeError(f"Score at index {i} must be numeric, got {type(s)}")
             if np.isnan(s):
                 raise ValueError(f"Score at index {i} is NaN")
             result.append(float(s))
@@ -914,9 +887,7 @@ class ExponentialMechanism:
             raise ValueError(f"n must be at least 1, got {n}")
 
         score_list = self._validate_scores(scores)
-        return [
-            self._categories[self._mechanism(score_list)] for _ in range(n)
-        ]
+        return [self._categories[self._mechanism(score_list)] for _ in range(n)]
 
     def sample_indices(
         self,
@@ -1041,9 +1012,7 @@ def create_gaussian_mechanism(
     Returns:
         Configured GaussianMechanism instance.
     """
-    return GaussianMechanism(
-        sensitivity=sensitivity, epsilon=epsilon, delta=delta
-    )
+    return GaussianMechanism(sensitivity=sensitivity, epsilon=epsilon, delta=delta)
 
 
 def add_gaussian_noise(
@@ -1065,9 +1034,7 @@ def add_gaussian_noise(
     Returns:
         Noisy value satisfying (ε,δ)-differential privacy.
     """
-    mechanism = GaussianMechanism(
-        sensitivity=sensitivity, epsilon=epsilon, delta=delta
-    )
+    mechanism = GaussianMechanism(sensitivity=sensitivity, epsilon=epsilon, delta=delta)
     return mechanism.release(value)
 
 
@@ -1090,9 +1057,7 @@ def add_gaussian_noise_array(
     Returns:
         NumPy array of noisy values satisfying (ε,δ)-differential privacy.
     """
-    mechanism = GaussianMechanism(
-        sensitivity=sensitivity, epsilon=epsilon, delta=delta
-    )
+    mechanism = GaussianMechanism(sensitivity=sensitivity, epsilon=epsilon, delta=delta)
     return mechanism.release_array(values)
 
 

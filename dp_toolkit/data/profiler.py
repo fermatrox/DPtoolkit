@@ -373,8 +373,7 @@ class CategoricalProfiler:
 
         # Top N values
         top_values = [
-            (str(val), int(cnt))
-            for val, cnt in value_counts.head(self.top_n).items()
+            (str(val), int(cnt)) for val, cnt in value_counts.head(self.top_n).items()
         ]
 
         # Shannon entropy (in bits)
@@ -664,7 +663,8 @@ class ColumnProfile:
     Attributes:
         column_name: Name of the column.
         profile_type: Type of profile (numeric, categorical, date).
-        profile: The actual profile (NumericProfile, CategoricalProfile, or DateProfile).
+        profile: The actual profile (NumericProfile, CategoricalProfile,
+            or DateProfile).
     """
 
     column_name: str
@@ -884,9 +884,7 @@ class CorrelationMatrix:
         Returns:
             DataFrame with column names as index and columns.
         """
-        return pd.DataFrame(
-            self.matrix, index=self.columns, columns=self.columns
-        )
+        return pd.DataFrame(self.matrix, index=self.columns, columns=self.columns)
 
     def get_high_correlations(
         self, threshold: float = 0.7, exclude_self: bool = True
@@ -979,7 +977,8 @@ class DatasetProfiler:
         Args:
             iqr_multiplier: IQR multiplier for numeric outlier detection.
             top_n: Number of top values for categorical profiles.
-            correlation_method: Method for correlation ('pearson', 'spearman', 'kendall').
+            correlation_method: Method for correlation
+                ('pearson', 'spearman', 'kendall').
             compute_correlations: Whether to compute correlation matrix.
         """
         self.column_profiler = ColumnProfiler(
@@ -1034,9 +1033,7 @@ class DatasetProfiler:
         # Calculate correlation matrix for numeric columns
         correlation_matrix = None
         if self.compute_correlations and len(numeric_cols) >= 2:
-            correlation_matrix = self._calculate_correlation_matrix(
-                df, numeric_cols
-            )
+            correlation_matrix = self._calculate_correlation_matrix(df, numeric_cols)
 
         # Count duplicate rows
         duplicate_count = int(df.duplicated().sum())
@@ -1091,7 +1088,9 @@ class DatasetProfiler:
         total_missing = int(missing_per_column.sum())
 
         # Calculate percentages
-        missing_percentage = (total_missing / total_cells * 100) if total_cells > 0 else 0.0
+        missing_percentage = (
+            (total_missing / total_cells * 100) if total_cells > 0 else 0.0
+        )
 
         # Columns with missing values
         columns_with_missing = int((missing_per_column > 0).sum())

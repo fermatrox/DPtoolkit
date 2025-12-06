@@ -68,9 +68,7 @@ class PrivacyBudget:
     def __post_init__(self) -> None:
         """Validate budget parameters."""
         if self.epsilon < 0:
-            raise ValueError(
-                f"Epsilon must be non-negative, got {self.epsilon}"
-            )
+            raise ValueError(f"Epsilon must be non-negative, got {self.epsilon}")
         if self.delta is not None and (self.delta < 0 or self.delta > 1):
             raise ValueError(f"Delta must be in [0, 1], got {self.delta}")
 
@@ -316,9 +314,7 @@ class PrivacyBudgetTracker:
     def __init__(
         self,
         total_budget: Optional[PrivacyBudget] = None,
-        composition_method: CompositionMethod = (
-            CompositionMethod.SEQUENTIAL_BASIC
-        ),
+        composition_method: CompositionMethod = (CompositionMethod.SEQUENTIAL_BASIC),
         delta_prime: float = DEFAULT_DELTA_PRIME,
     ) -> None:
         """Initialize the budget tracker.
@@ -403,9 +399,7 @@ class PrivacyBudgetTracker:
         # Check if this query would exceed budget
         if check_budget and self._total_budget is not None:
             hypothetical_queries = self._queries + [query]
-            hypothetical_consumed = self._compute_consumed(
-                hypothetical_queries
-            )
+            hypothetical_consumed = self._compute_consumed(hypothetical_queries)
             if not hypothetical_consumed <= self._total_budget:
                 raise BudgetExceededError(
                     f"Query '{name}' would exceed budget. "
@@ -435,9 +429,7 @@ class PrivacyBudgetTracker:
         elif self._composition_method == CompositionMethod.PARALLEL:
             return compose_parallel(budgets)
         else:
-            raise ValueError(
-                f"Unknown composition method: {self._composition_method}"
-            )
+            raise ValueError(f"Unknown composition method: {self._composition_method}")
 
     @property
     def consumed_budget(self) -> PrivacyBudget:
@@ -456,15 +448,11 @@ class PrivacyBudgetTracker:
 
         consumed = self.consumed_budget
 
-        remaining_epsilon = max(
-            0.0, self._total_budget.epsilon - consumed.epsilon
-        )
+        remaining_epsilon = max(0.0, self._total_budget.epsilon - consumed.epsilon)
 
         if self._total_budget.delta is not None:
             consumed_delta = consumed.delta or 0.0
-            remaining_delta = max(
-                0.0, self._total_budget.delta - consumed_delta
-            )
+            remaining_delta = max(0.0, self._total_budget.delta - consumed_delta)
         else:
             remaining_delta = None
 
@@ -627,9 +615,7 @@ class PrivacyBudgetTracker:
             ),
             "consumed_budget": str(self.consumed_budget),
             "remaining_budget": (
-                str(self.remaining_budget)
-                if self.remaining_budget
-                else "unlimited"
+                str(self.remaining_budget) if self.remaining_budget else "unlimited"
             ),
             "composition_method": self._composition_method.value,
             "query_count": self.query_count,
