@@ -90,6 +90,27 @@
 - Performance: 100K rows in <10s, cache provides 10x+ speedup
 - **Commit:** `06d526d`
 
+#### Step 3.1: Laplace Mechanism
+- Implemented `dp_toolkit/core/mechanisms.py`
+- `validate_epsilon()` with configurable range [0.01, 10.0]
+- `validate_bounds()` for bounded data validation
+- `calculate_sensitivity_bounded()` for sensitivity = upper - lower
+- `calculate_scale_laplace()` for scale = sensitivity / epsilon
+- `PrivacyUsage` dataclass for privacy budget tracking
+- `DPMechanism` abstract base class
+- `LaplaceMechanism` class wrapping OpenDP:
+  - Scalar and vector release methods
+  - Clamping support for bounded data
+  - Privacy usage tracking
+- Convenience functions: `create_laplace_mechanism()`, `add_laplace_noise()`, `add_laplace_noise_array()`
+- 55 new tests (270 total) including:
+  - Validation tests for epsilon and bounds
+  - Sensitivity and scale calculation tests
+  - Laplace distribution verification (KS test)
+  - Privacy guarantee verification
+  - Edge cases (min/max epsilon, small/large ranges)
+- **Commit:** (pending)
+
 ### Test Summary
 | Step | New Tests | Total Tests |
 |------|-----------|-------------|
@@ -99,19 +120,20 @@
 | 2.1 | 42 | 95 |
 | 2.2 | 78 | 173 |
 | 2.3 | 42 | 215 |
+| 3.1 | 55 | 270 |
 
 ### Current State
-- All 215 tests passing
+- All 270 tests passing
 - Linting clean (flake8, black, mypy)
 - Phase 1 (Foundation) complete
 - Phase 2 (Statistical Profiling) complete
+- Phase 3 (DP Mechanisms) in progress
 
 ### Next Step
-**Step 3.1: Laplace Mechanism**
-- Implement dp_toolkit/core/mechanisms.py
-- Wrap OpenDP Laplace mechanism
-- Sensitivity calculation for bounded data
-- Epsilon parameter validation
+**Step 3.2: Gaussian Mechanism**
+- Implement Gaussian mechanism for (ε,δ)-DP
+- Support unbounded numeric data
+- Add delta parameter validation
 
 ### Open Issues / Decisions Needed
 None currently.
