@@ -96,12 +96,7 @@ ipython_config.py
 Thumbs.db
 
 # Project-specific
-*.docx
-*.xlsx
-*.xls
-*.parquet
 test_data/
-*.pdf
 
 # Streamlit
 .streamlit/secrets.toml
@@ -109,3 +104,8 @@ test_data/
 # Local development
 .env.local
 .env.*.local
+
+# Claude Code local files (not for repo)
+CLAUDE.md
+DEVELOPMENT_PLAN.md
+.claude/
