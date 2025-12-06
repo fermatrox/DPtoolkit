@@ -109,6 +109,29 @@
   - Laplace distribution verification (KS test)
   - Privacy guarantee verification
   - Edge cases (min/max epsilon, small/large ranges)
+- **Commit:** `0d00200`
+
+#### Step 3.2: Gaussian Mechanism
+- Extended `dp_toolkit/core/mechanisms.py` with:
+- `DELTA_MIN`, `DELTA_MAX` constants for (ε,δ)-DP
+- `validate_delta()` for delta parameter validation
+- `validate_sensitivity()` for user-specified sensitivity
+- `calculate_rho_from_epsilon_delta()` for zCDP conversion
+- `calculate_scale_gaussian()` for exact epsilon targeting
+- `calculate_epsilon_from_rho_delta()` for privacy verification
+- `GaussianMechanism` class wrapping OpenDP:
+  - Scalar and vector release methods
+  - zCDP-based scale calculation
+  - Achieved epsilon calculation for any delta
+  - Privacy usage tracking with delta
+- Convenience functions: `create_gaussian_mechanism()`, `add_gaussian_noise()`, `add_gaussian_noise_array()`
+- 56 new tests (326 total) including:
+  - Validation tests for delta and sensitivity
+  - zCDP rho conversion tests
+  - Gaussian distribution verification (KS test)
+  - (ε,δ)-DP guarantee verification
+  - Gaussian vs Laplace comparison tests
+  - Edge cases (min/max delta, sensitivity)
 - **Commit:** (pending)
 
 ### Test Summary
@@ -121,19 +144,19 @@
 | 2.2 | 78 | 173 |
 | 2.3 | 42 | 215 |
 | 3.1 | 55 | 270 |
+| 3.2 | 56 | 326 |
 
 ### Current State
-- All 270 tests passing
+- All 326 tests passing
 - Linting clean (flake8, black, mypy)
 - Phase 1 (Foundation) complete
 - Phase 2 (Statistical Profiling) complete
 - Phase 3 (DP Mechanisms) in progress
 
 ### Next Step
-**Step 3.2: Gaussian Mechanism**
-- Implement Gaussian mechanism for (ε,δ)-DP
-- Support unbounded numeric data
-- Add delta parameter validation
+**Step 3.3: Exponential Mechanism**
+- Implement exponential mechanism for categorical data
+- ε-DP guarantees for discrete outputs
 
 ### Open Issues / Decisions Needed
 None currently.
