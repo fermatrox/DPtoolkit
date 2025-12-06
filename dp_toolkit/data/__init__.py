@@ -11,10 +11,28 @@ from dp_toolkit.data.loader import (
     load_parquet,
 )
 from dp_toolkit.data.profiler import (
+    # Enums
+    ProfileType,
+    # Numeric profiling
     NumericProfile,
     NumericProfiler,
     profile_numeric,
     profile_numeric_columns,
+    # Categorical profiling
+    CategoricalProfile,
+    CategoricalProfiler,
+    profile_categorical,
+    profile_categorical_columns,
+    # Date profiling
+    DateProfile,
+    DateProfiler,
+    profile_date,
+    profile_date_columns,
+    # Unified profiling
+    ColumnProfile,
+    ColumnProfiler,
+    profile_column,
+    profile_columns,
 )
 
 __all__ = [
@@ -27,9 +45,26 @@ __all__ = [
     "load_csv",
     "load_excel",
     "load_parquet",
-    # Profiler
+    # Profiler - Enums
+    "ProfileType",
+    # Profiler - Numeric
     "NumericProfile",
     "NumericProfiler",
     "profile_numeric",
     "profile_numeric_columns",
+    # Profiler - Categorical
+    "CategoricalProfile",
+    "CategoricalProfiler",
+    "profile_categorical",
+    "profile_categorical_columns",
+    # Profiler - Date
+    "DateProfile",
+    "DateProfiler",
+    "profile_date",
+    "profile_date_columns",
+    # Profiler - Unified
+    "ColumnProfile",
+    "ColumnProfiler",
+    "profile_column",
+    "profile_columns",
 ]
