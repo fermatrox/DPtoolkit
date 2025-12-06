@@ -33,6 +33,14 @@ from dp_toolkit.data.profiler import (
     ColumnProfiler,
     profile_column,
     profile_columns,
+    # Dataset-level profiling
+    MissingValueSummary,
+    CorrelationMatrix,
+    DatasetProfile,
+    DatasetProfiler,
+    profile_dataset,
+    calculate_missing_summary,
+    calculate_correlation_matrix,
 )
 
 __all__ = [
@@ -67,4 +75,12 @@ __all__ = [
     "ColumnProfiler",
     "profile_column",
     "profile_columns",
+    # Profiler - Dataset
+    "MissingValueSummary",
+    "CorrelationMatrix",
+    "DatasetProfile",
+    "DatasetProfiler",
+    "profile_dataset",
+    "calculate_missing_summary",
+    "calculate_correlation_matrix",
 ]

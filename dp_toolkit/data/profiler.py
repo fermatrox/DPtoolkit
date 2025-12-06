@@ -816,3 +816,394 @@ def profile_columns(
     """
     profiler = ColumnProfiler()
     return profiler.profile_dataframe(df, columns)
+
+
+# =============================================================================
+# Dataset-Level Profiling
+# =============================================================================
+
+
+@dataclass
+class MissingValueSummary:
+    """Summary of missing values in a dataset.
+
+    Attributes:
+        total_cells: Total number of cells in the dataset.
+        total_missing: Total number of missing cells.
+        missing_percentage: Overall percentage of missing values.
+        columns_with_missing: Number of columns containing missing values.
+        rows_with_missing: Number of rows containing at least one missing value.
+        complete_rows: Number of rows with no missing values.
+        per_column: Dictionary mapping column names to their missing count.
+        per_column_percentage: Dictionary mapping column names to missing percentage.
+    """
+
+    total_cells: int
+    total_missing: int
+    missing_percentage: float
+    columns_with_missing: int
+    rows_with_missing: int
+    complete_rows: int
+    per_column: dict[str, int] = field(default_factory=dict)
+    per_column_percentage: dict[str, float] = field(default_factory=dict)
+
+
+@dataclass
+class CorrelationMatrix:
+    """Correlation matrix for numeric columns.
+
+    Attributes:
+        columns: List of column names in the matrix.
+        matrix: The correlation matrix as a 2D numpy array.
+        method: Correlation method used ('pearson', 'spearman', 'kendall').
+    """
+
+    columns: list[str]
+    matrix: np.ndarray
+    method: str
+
+    def get(self, col1: str, col2: str) -> Optional[float]:
+        """Get correlation between two columns.
+
+        Args:
+            col1: First column name.
+            col2: Second column name.
+
+        Returns:
+            Correlation coefficient, or None if columns not in matrix.
+        """
+        if col1 not in self.columns or col2 not in self.columns:
+            return None
+        i = self.columns.index(col1)
+        j = self.columns.index(col2)
+        return float(self.matrix[i, j])
+
+    def to_dataframe(self) -> pd.DataFrame:
+        """Convert to pandas DataFrame for easy viewing.
+
+        Returns:
+            DataFrame with column names as index and columns.
+        """
+        return pd.DataFrame(
+            self.matrix, index=self.columns, columns=self.columns
+        )
+
+    def get_high_correlations(
+        self, threshold: float = 0.7, exclude_self: bool = True
+    ) -> list[tuple[str, str, float]]:
+        """Get pairs of columns with high correlation.
+
+        Args:
+            threshold: Minimum absolute correlation to include.
+            exclude_self: If True, exclude self-correlations (always 1.0).
+
+        Returns:
+            List of (col1, col2, correlation) tuples, sorted by absolute value.
+        """
+        pairs = []
+        n = len(self.columns)
+        for i in range(n):
+            for j in range(i + 1 if exclude_self else i, n):
+                corr = float(self.matrix[i, j])
+                if abs(corr) >= threshold:
+                    pairs.append((self.columns[i], self.columns[j], corr))
+        return sorted(pairs, key=lambda x: abs(x[2]), reverse=True)
+
+
+@dataclass
+class DatasetProfile:
+    """Comprehensive profile of an entire dataset.
+
+    Attributes:
+        row_count: Number of rows in the dataset.
+        column_count: Number of columns in the dataset.
+        memory_usage_bytes: Approximate memory usage in bytes.
+        numeric_columns: List of numeric column names.
+        categorical_columns: List of categorical column names.
+        date_columns: List of date column names.
+        column_profiles: Dictionary of ColumnProfile for each column.
+        missing_summary: Summary of missing values.
+        correlation_matrix: Correlation matrix for numeric columns (optional).
+        duplicate_row_count: Number of duplicate rows.
+    """
+
+    row_count: int
+    column_count: int
+    memory_usage_bytes: int
+    numeric_columns: list[str]
+    categorical_columns: list[str]
+    date_columns: list[str]
+    column_profiles: dict[str, ColumnProfile]
+    missing_summary: MissingValueSummary
+    correlation_matrix: Optional[CorrelationMatrix] = None
+    duplicate_row_count: int = 0
+
+    @property
+    def has_missing(self) -> bool:
+        """Check if dataset has any missing values."""
+        return self.missing_summary.total_missing > 0
+
+    @property
+    def completeness(self) -> float:
+        """Get overall data completeness (1.0 = no missing values)."""
+        return 1.0 - self.missing_summary.missing_percentage / 100.0
+
+    def get_column_profile(self, column: str) -> Optional[ColumnProfile]:
+        """Get profile for a specific column.
+
+        Args:
+            column: Column name.
+
+        Returns:
+            ColumnProfile or None if column not found.
+        """
+        return self.column_profiles.get(column)
+
+
+class DatasetProfiler:
+    """Profile entire datasets with comprehensive statistics.
+
+    Provides dataset-level statistics including correlation matrix,
+    missing value analysis, and per-column profiling.
+    """
+
+    def __init__(
+        self,
+        iqr_multiplier: float = 1.5,
+        top_n: int = 10,
+        correlation_method: str = "pearson",
+        compute_correlations: bool = True,
+    ) -> None:
+        """Initialize the dataset profiler.
+
+        Args:
+            iqr_multiplier: IQR multiplier for numeric outlier detection.
+            top_n: Number of top values for categorical profiles.
+            correlation_method: Method for correlation ('pearson', 'spearman', 'kendall').
+            compute_correlations: Whether to compute correlation matrix.
+        """
+        self.column_profiler = ColumnProfiler(
+            iqr_multiplier=iqr_multiplier, top_n=top_n
+        )
+        self.correlation_method = correlation_method
+        self.compute_correlations = compute_correlations
+        self._cache: dict[int, DatasetProfile] = {}
+
+    def profile(
+        self,
+        df: pd.DataFrame,
+        columns: Optional[list[str]] = None,
+        use_cache: bool = True,
+    ) -> DatasetProfile:
+        """Profile an entire dataset.
+
+        Args:
+            df: The DataFrame to profile.
+            columns: Columns to profile. If None, profiles all columns.
+            use_cache: Whether to use cached results for identical DataFrames.
+
+        Returns:
+            DatasetProfile with comprehensive statistics.
+        """
+        # Check cache
+        cache_key = self._get_cache_key(df)
+        if use_cache and cache_key in self._cache:
+            return self._cache[cache_key]
+
+        # Determine columns to profile
+        cols_to_profile = columns if columns is not None else df.columns.tolist()
+
+        # Profile each column
+        column_profiles = self.column_profiler.profile_dataframe(df, cols_to_profile)
+
+        # Categorize columns by type
+        numeric_cols = []
+        categorical_cols = []
+        date_cols = []
+        for col_name, col_profile in column_profiles.items():
+            if col_profile.profile_type == ProfileType.NUMERIC:
+                numeric_cols.append(col_name)
+            elif col_profile.profile_type == ProfileType.CATEGORICAL:
+                categorical_cols.append(col_name)
+            elif col_profile.profile_type == ProfileType.DATE:
+                date_cols.append(col_name)
+
+        # Calculate missing value summary
+        missing_summary = self._calculate_missing_summary(df, cols_to_profile)
+
+        # Calculate correlation matrix for numeric columns
+        correlation_matrix = None
+        if self.compute_correlations and len(numeric_cols) >= 2:
+            correlation_matrix = self._calculate_correlation_matrix(
+                df, numeric_cols
+            )
+
+        # Count duplicate rows
+        duplicate_count = int(df.duplicated().sum())
+
+        # Create profile
+        profile = DatasetProfile(
+            row_count=len(df),
+            column_count=len(cols_to_profile),
+            memory_usage_bytes=int(df[cols_to_profile].memory_usage(deep=True).sum()),
+            numeric_columns=numeric_cols,
+            categorical_columns=categorical_cols,
+            date_columns=date_cols,
+            column_profiles=column_profiles,
+            missing_summary=missing_summary,
+            correlation_matrix=correlation_matrix,
+            duplicate_row_count=duplicate_count,
+        )
+
+        # Cache result
+        if use_cache:
+            self._cache[cache_key] = profile
+
+        return profile
+
+    def _get_cache_key(self, df: pd.DataFrame) -> int:
+        """Generate a cache key for a DataFrame.
+
+        Uses a combination of shape, column names, and dtypes.
+        """
+        key_parts = [
+            df.shape,
+            tuple(df.columns.tolist()),
+            tuple(str(dt) for dt in df.dtypes),
+        ]
+        return hash(tuple(key_parts))
+
+    def _calculate_missing_summary(
+        self, df: pd.DataFrame, columns: list[str]
+    ) -> MissingValueSummary:
+        """Calculate missing value summary for the dataset.
+
+        Args:
+            df: The DataFrame to analyze.
+            columns: Columns to include in the analysis.
+
+        Returns:
+            MissingValueSummary with detailed missing value statistics.
+        """
+        subset = df[columns]
+        total_cells = subset.size
+        missing_per_column = subset.isna().sum()
+        total_missing = int(missing_per_column.sum())
+
+        # Calculate percentages
+        missing_percentage = (total_missing / total_cells * 100) if total_cells > 0 else 0.0
+
+        # Columns with missing values
+        columns_with_missing = int((missing_per_column > 0).sum())
+
+        # Rows with any missing values
+        rows_with_missing = int(subset.isna().any(axis=1).sum())
+        complete_rows = len(df) - rows_with_missing
+
+        # Per-column statistics
+        per_column = {col: int(missing_per_column[col]) for col in columns}
+        row_count = len(df)
+        per_column_percentage = {
+            col: (count / row_count * 100) if row_count > 0 else 0.0
+            for col, count in per_column.items()
+        }
+
+        return MissingValueSummary(
+            total_cells=total_cells,
+            total_missing=total_missing,
+            missing_percentage=missing_percentage,
+            columns_with_missing=columns_with_missing,
+            rows_with_missing=rows_with_missing,
+            complete_rows=complete_rows,
+            per_column=per_column,
+            per_column_percentage=per_column_percentage,
+        )
+
+    def _calculate_correlation_matrix(
+        self, df: pd.DataFrame, numeric_columns: list[str]
+    ) -> CorrelationMatrix:
+        """Calculate correlation matrix for numeric columns.
+
+        Args:
+            df: The DataFrame.
+            numeric_columns: List of numeric column names.
+
+        Returns:
+            CorrelationMatrix with correlation coefficients.
+        """
+        corr_df = df[numeric_columns].corr(method=self.correlation_method)
+        return CorrelationMatrix(
+            columns=numeric_columns,
+            matrix=corr_df.values,
+            method=self.correlation_method,
+        )
+
+    def clear_cache(self) -> None:
+        """Clear the profile cache."""
+        self._cache.clear()
+
+    def get_cache_size(self) -> int:
+        """Get number of cached profiles."""
+        return len(self._cache)
+
+
+def profile_dataset(
+    df: pd.DataFrame,
+    columns: Optional[list[str]] = None,
+    correlation_method: str = "pearson",
+    compute_correlations: bool = True,
+) -> DatasetProfile:
+    """Convenience function to profile an entire dataset.
+
+    Args:
+        df: The DataFrame to profile.
+        columns: Columns to profile. If None, profiles all columns.
+        correlation_method: Method for correlation ('pearson', 'spearman', 'kendall').
+        compute_correlations: Whether to compute correlation matrix.
+
+    Returns:
+        DatasetProfile with comprehensive statistics.
+    """
+    profiler = DatasetProfiler(
+        correlation_method=correlation_method,
+        compute_correlations=compute_correlations,
+    )
+    return profiler.profile(df, columns=columns, use_cache=False)
+
+
+def calculate_missing_summary(df: pd.DataFrame) -> MissingValueSummary:
+    """Convenience function to calculate missing value summary.
+
+    Args:
+        df: The DataFrame to analyze.
+
+    Returns:
+        MissingValueSummary with detailed statistics.
+    """
+    profiler = DatasetProfiler(compute_correlations=False)
+    return profiler._calculate_missing_summary(df, df.columns.tolist())
+
+
+def calculate_correlation_matrix(
+    df: pd.DataFrame,
+    columns: Optional[list[str]] = None,
+    method: str = "pearson",
+) -> CorrelationMatrix:
+    """Convenience function to calculate correlation matrix.
+
+    Args:
+        df: The DataFrame.
+        columns: Numeric columns to include. If None, uses all numeric columns.
+        method: Correlation method ('pearson', 'spearman', 'kendall').
+
+    Returns:
+        CorrelationMatrix with correlation coefficients.
+    """
+    if columns is None:
+        columns = df.select_dtypes(include=[np.number]).columns.tolist()
+
+    if len(columns) < 2:
+        raise ValueError("Need at least 2 numeric columns for correlation matrix")
+
+    profiler = DatasetProfiler(correlation_method=method)
+    return profiler._calculate_correlation_matrix(df, columns)

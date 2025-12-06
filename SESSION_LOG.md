@@ -62,7 +62,33 @@
 - `ColumnProfiler` auto-detecting profiler
 - `ProfileType` enum (NUMERIC, CATEGORICAL, DATE)
 - 78 new tests (173 total)
-- **Commit:** `54d5a6f`
+- **Commit:** `16812e1`
+
+#### Step 2.3: Dataset-Level Profiling
+- Extended `dp_toolkit/data/profiler.py` with:
+- `MissingValueSummary` dataclass:
+  - total_cells, total_missing, missing_percentage
+  - columns_with_missing, rows_with_missing, complete_rows
+  - per_column and per_column_percentage dictionaries
+- `CorrelationMatrix` dataclass:
+  - columns, matrix (numpy array), method
+  - get() for individual correlations
+  - to_dataframe() for pandas view
+  - get_high_correlations() with threshold filtering
+- `DatasetProfile` dataclass:
+  - row_count, column_count, memory_usage_bytes
+  - numeric/categorical/date column lists
+  - column_profiles dictionary
+  - missing_summary, correlation_matrix
+  - duplicate_row_count
+  - has_missing, completeness properties
+- `DatasetProfiler` class with:
+  - Configurable correlation method (pearson, spearman, kendall)
+  - Profile caching for performance
+  - Convenience functions: profile_dataset, calculate_missing_summary, calculate_correlation_matrix
+- 42 new tests (215 total)
+- Performance: 100K rows in <10s, cache provides 10x+ speedup
+- **Commit:** `06d526d`
 
 ### Test Summary
 | Step | New Tests | Total Tests |
@@ -72,19 +98,20 @@
 | 1.3 | 27 | 53 |
 | 2.1 | 42 | 95 |
 | 2.2 | 78 | 173 |
+| 2.3 | 42 | 215 |
 
 ### Current State
-- All 173 tests passing
+- All 215 tests passing
 - Linting clean (flake8, black, mypy)
 - Phase 1 (Foundation) complete
-- Phase 2 (Statistical Profiling) Step 2 complete
+- Phase 2 (Statistical Profiling) complete
 
 ### Next Step
-**Step 2.3: Dataset-Level Profiling**
-- Correlation matrix for numeric columns
-- Missing value summary
-- Dataset-level statistics
-- Profile caching for performance
+**Step 3.1: Laplace Mechanism**
+- Implement dp_toolkit/core/mechanisms.py
+- Wrap OpenDP Laplace mechanism
+- Sensitivity calculation for bounded data
+- Epsilon parameter validation
 
 ### Open Issues / Decisions Needed
 None currently.
