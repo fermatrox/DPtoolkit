@@ -154,6 +154,35 @@
   - Edge cases (min/max epsilon, two categories, many categories)
 - **Commit:** `5db5958`
 
+#### Step 3.4: Privacy Budget Tracker
+- Implemented `dp_toolkit/core/budget.py` with:
+- `PrivacyBudget` dataclass:
+  - Immutable (frozen) budget representation
+  - Supports pure ε-DP and (ε,δ)-DP
+  - Addition, comparison operators
+  - is_pure_dp() check
+- `BudgetQuery` dataclass for tracking individual queries
+- `CompositionMethod` enum (SEQUENTIAL_BASIC, SEQUENTIAL_ADVANCED, PARALLEL)
+- Composition functions:
+  - `compose_sequential_basic()` - sum of epsilons/deltas
+  - `compose_sequential_advanced()` - tighter bounds using advanced composition theorem
+  - `compose_parallel()` - max of epsilons (for disjoint data)
+- `PrivacyBudgetTracker` class:
+  - Total budget enforcement with `BudgetExceededError`
+  - Query recording with metadata (mechanism, column, timestamp)
+  - Budget allocation (`allocate_budget()`)
+  - Can afford checks (`can_afford()`)
+  - Per-column and per-mechanism query filtering
+  - Summary and utilization reporting
+- Convenience functions: `create_budget_tracker()`, `calculate_total_budget()`
+- 74 new tests (438 total) including:
+  - PrivacyBudget validation and arithmetic
+  - All composition methods
+  - Tracker budget enforcement
+  - Query filtering and management
+  - Edge cases
+- **Commit:** `8233326`
+
 ### Test Summary
 | Step | New Tests | Total Tests |
 |------|-----------|-------------|
@@ -166,19 +195,20 @@
 | 3.1 | 55 | 270 |
 | 3.2 | 56 | 326 |
 | 3.3 | 38 | 364 |
+| 3.4 | 74 | 438 |
 
 ### Current State
-- All 364 tests passing
+- All 438 tests passing
 - Linting clean (flake8, black, mypy)
 - Phase 1 (Foundation) complete
 - Phase 2 (Statistical Profiling) complete
 - Phase 3 (DP Mechanisms) complete
 
 ### Next Step
-**Step 4.1: Privacy Budget Manager**
-- Implement global budget tracking
-- Budget allocation across multiple queries
-- Budget composition (basic, advanced sequential)
+**Step 4.1: Data Transformation Pipeline**
+- Implement DP transformation for numeric columns
+- Implement DP transformation for categorical columns
+- Unified transformation interface
 
 ### Open Issues / Decisions Needed
 None currently.

@@ -38,8 +38,29 @@ from dp_toolkit.core.mechanisms import (
     sample_categories,
 )
 
-__all__ = [
+from dp_toolkit.core.budget import (
     # Constants
+    DEFAULT_DELTA_PRIME,
+    # Enums
+    CompositionMethod,
+    # Data classes
+    PrivacyBudget,
+    BudgetQuery,
+    # Composition functions
+    compose_sequential_basic,
+    compose_sequential_advanced,
+    compose_parallel,
+    # Main class
+    PrivacyBudgetTracker,
+    # Exception
+    BudgetExceededError,
+    # Convenience functions
+    create_budget_tracker,
+    calculate_total_budget,
+)
+
+__all__ = [
+    # Mechanism Constants
     "EPSILON_MIN",
     "EPSILON_MAX",
     "DELTA_MIN",
@@ -56,7 +77,7 @@ __all__ = [
     "calculate_scale_exponential",
     "calculate_rho_from_epsilon_delta",
     "calculate_epsilon_from_rho_delta",
-    # Classes
+    # Mechanism Classes
     "PrivacyUsage",
     "DPMechanism",
     "LaplaceMechanism",
@@ -74,4 +95,21 @@ __all__ = [
     "create_exponential_mechanism",
     "select_category",
     "sample_categories",
+    # Budget Constants
+    "DEFAULT_DELTA_PRIME",
+    # Budget Enums
+    "CompositionMethod",
+    # Budget Data Classes
+    "PrivacyBudget",
+    "BudgetQuery",
+    # Composition Functions
+    "compose_sequential_basic",
+    "compose_sequential_advanced",
+    "compose_parallel",
+    # Budget Tracker
+    "PrivacyBudgetTracker",
+    "BudgetExceededError",
+    # Budget Convenience Functions
+    "create_budget_tracker",
+    "calculate_total_budget",
 ]
