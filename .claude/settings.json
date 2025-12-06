@@ -1,0 +1,26 @@
+{
+  "hooks": {
+    "PreToolUse": [
+      {
+        "matcher": "Bash",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [[ \"$TOOL_INPUT\" == *\"git commit\"* ]]; then cd \"$CLAUDE_PROJECT_DIR\" && if [ -d \"dp_toolkit\" ]; then python -m flake8 dp_toolkit --count --select=E9,F63,F7,F82 --show-source --statistics; fi; fi"
+          }
+        ]
+      }
+    ],
+    "PostToolUse": [
+      {
+        "matcher": "Write",
+        "hooks": [
+          {
+            "type": "command",
+            "command": "if [[ \"$CLAUDE_TOOL_USE_FILE_PATH\" == *\"dp_toolkit/\"*.py ]]; then cd \"$CLAUDE_PROJECT_DIR\" && if [ -d \"tests\" ]; then python -m pytest tests/ -x -q --tb=short 2>/dev/null || true; fi; fi"
+          }
+        ]
+      }
+    ]
+  }
+}
