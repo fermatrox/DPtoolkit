@@ -107,6 +107,10 @@ def run_comparison(
     column_configs: Dict[str, Dict[str, Any]],
 ) -> DatasetComparison:
     """Run comparison between original and protected datasets."""
+    # Filter original to only include columns in protected (excludes were removed)
+    common_cols = [c for c in protected_df.columns if c in original_df.columns]
+    original_filtered = original_df[common_cols].copy()
+
     # Identify column types for comparison
     numeric_cols = []
     categorical_cols = []
@@ -121,14 +125,14 @@ def run_comparison(
             numeric_cols.append(col)
         elif col_type in ["categorical", "unknown"]:
             # Check if actually numeric
-            if pd.api.types.is_numeric_dtype(original_df[col]):
+            if pd.api.types.is_numeric_dtype(original_filtered[col]):
                 numeric_cols.append(col)
             else:
                 categorical_cols.append(col)
 
     comparator = DatasetComparator()
     return comparator.compare(
-        original=original_df,
+        original=original_filtered,
         protected=protected_df,
         numeric_columns=numeric_cols if numeric_cols else None,
         categorical_columns=categorical_cols if categorical_cols else None,
