@@ -497,6 +497,7 @@
 | 5.2 | 73 | 718 |
 | 5.3 | 52 | 770 |
 | 6.1 | 193 | 963 |
+| 6.2 | 83 | 1046 |
 
 #### Step 6.1: Column Classifier
 - Implemented `dp_toolkit/recommendations/classifier.py` with:
@@ -535,8 +536,53 @@
   - Edge cases (empty, unicode, long names, special chars)
   - Performance tests
 
+#### Step 6.2: Epsilon Advisor
+- Implemented `dp_toolkit/recommendations/advisor.py` with:
+- `RecommendedMechanism` enum (LAPLACE, GAUSSIAN, EXPONENTIAL)
+- `DataType` enum (NUMERIC_BOUNDED, NUMERIC_UNBOUNDED, CATEGORICAL, DATE)
+- `UtilityLevel` enum (HIGH, MEDIUM, LOW)
+- `EpsilonRecommendation` dataclass:
+  - sensitivity, epsilon, epsilon_range
+  - explanation, confidence
+  - to_dict() for serialization
+- `MechanismRecommendation` dataclass:
+  - data_type, mechanism, delta (for Gaussian)
+  - explanation, confidence
+- `ColumnRecommendation` dataclass:
+  - Combines epsilon + mechanism recommendations
+  - classification, utility_level, overall_explanation
+- `DatasetRecommendation` dataclass:
+  - column_recommendations dictionary
+  - total_epsilon, global_epsilon_suggestion properties
+  - high_sensitivity_columns, columns_by_mechanism properties
+  - to_dataframe() for display
+- `EpsilonAdvisor` class:
+  - Epsilon ranges from PRD: High(0.1-0.5), Medium(0.5-2.0), Low(2.0-5.0)
+  - prefer_privacy/prefer_utility options
+  - validate_epsilon() with warnings
+  - Custom ranges and defaults support
+- `MechanismAdvisor` class:
+  - Auto-detect data type from Series
+  - Recommend mechanism by type (Laplace/Gaussian/Exponential)
+  - Handle boolean, datetime, all-null columns
+- `RecommendationAdvisor` class:
+  - Combined epsilon + mechanism advisor
+  - Manual override support
+  - Utility level determination
+  - Dataset-wide recommendations
+- Convenience functions: recommend_epsilon, recommend_mechanism,
+  recommend_for_column, recommend_for_dataset, get_epsilon_for_column,
+  get_mechanism_for_series, validate_epsilon
+- 83 new tests (1046 total) including:
+  - PRD compliance tests (epsilon ranges, mechanism by type)
+  - Epsilon validation and warnings
+  - Data type detection
+  - Override functionality
+  - Integration tests
+  - Edge cases
+
 ### Current State
-- All 963 tests passing
+- All 1046 tests passing
 - Linting clean (flake8, black, mypy)
 - Test coverage: 96%
 - Phase 1 (Foundation) complete
@@ -544,14 +590,14 @@
 - Phase 3 (DP Mechanisms) complete
 - Phase 4 (Transformation Pipeline) complete
 - Phase 5 (Analysis & Comparison) complete
-- Phase 6 Step 6.1 (Column Classifier) complete
+- Phase 6 (Recommendations Engine) complete
 
 ### Next Step
-**Step 6.2: Epsilon Advisor**
-- Implement `dp_toolkit/recommendations/advisor.py`
-- Recommend epsilon values by sensitivity level
-- Recommend mechanisms by data type
-- Provide explanatory text
+**Step 7.1: Streamlit App Shell**
+- Implement `frontend/app.py`
+- Multi-page navigation setup
+- Session state management
+- Basic styling
 
 ### Open Issues / Decisions Needed
 None currently.
