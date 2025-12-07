@@ -20,6 +20,7 @@ import streamlit as st  # noqa: E402
 from utils.session import initialize_session_state, clear_session_data  # noqa: E402
 from utils.config import PAGE_CONFIG  # noqa: E402
 from pages.upload import render_upload_page  # noqa: E402
+from pages.configure import render_configure_page  # noqa: E402
 
 
 # =============================================================================
@@ -218,44 +219,6 @@ def render_main_content() -> None:
 # =============================================================================
 # Page Placeholders (to be replaced with actual implementations)
 # =============================================================================
-
-
-def render_configure_page() -> None:
-    """Render the configure page (placeholder)."""
-    st.header("Step 2: Configure Privacy Settings")
-
-    if not st.session_state.get("dataset_loaded", False):
-        st.warning("Please upload a dataset first.")
-        if st.button("Go to Upload"):
-            st.session_state.current_step = 1
-            st.rerun()
-        return
-
-    st.markdown("Configure how differential privacy will be applied to each column.")
-
-    st.info("*Full configuration functionality will be implemented in Step 7.3*")
-
-    # Placeholder controls
-    col1, col2 = st.columns(2)
-    with col1:
-        global_epsilon = st.slider(
-            "Global Epsilon (ε)",
-            min_value=0.1,
-            max_value=10.0,
-            value=1.0,
-            step=0.1,
-            help="Privacy parameter - lower values mean more privacy",
-        )
-
-    with col2:
-        st.metric("Privacy Level", "Medium" if global_epsilon > 0.5 else "High")
-
-    # Enable navigation
-    if st.button("Apply & Continue to Analyze", type="primary"):
-        st.session_state.config_complete = True
-        st.session_state.total_epsilon = global_epsilon
-        st.session_state.current_step = 3
-        st.rerun()
 
 
 def render_analyze_page() -> None:
