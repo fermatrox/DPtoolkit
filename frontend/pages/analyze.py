@@ -28,6 +28,23 @@ from dp_toolkit.analysis.visualizer import (
     create_box_comparison,
 )
 
+# Import UI utilities
+try:
+    from utils.ui_components import (
+        ErrorMessages,
+        HELP_TEXTS,
+        safe_metric,
+        safe_chart,
+        ProgressTracker,
+    )
+except ImportError:
+    # Fallback if running standalone
+    ErrorMessages = None  # type: ignore
+    HELP_TEXTS = {}
+    safe_metric = st.metric  # type: ignore
+    safe_chart = None  # type: ignore
+    ProgressTracker = None  # type: ignore
+
 
 # =============================================================================
 # Session State Helpers
@@ -632,29 +649,59 @@ def render_analyze_page() -> None:
 
     if protected_df is None or comparison is None:
         st.info(
-            "Click 'Run Analysis' to apply differential privacy and compare."
+            "Click 'Run Analysis' to apply differential privacy and compare datasets."
         )
 
+        # Show what will happen
+        protect_count = sum(1 for cfg in column_configs.values() if cfg.get("mode") == "protect")
+        total_eps = sum(
+            cfg.get("epsilon", 1.0)
+            for cfg in column_configs.values()
+            if cfg.get("mode") == "protect"
+        )
+
+        col1, col2, col3 = st.columns(3)
+        with col1:
+            st.metric("Columns to Protect", protect_count)
+        with col2:
+            st.metric("Total Epsilon", f"{total_eps:.2f}")
+        with col3:
+            st.metric("Rows", f"{len(original_df):,}")
+
         if st.button("Run Analysis", type="primary"):
-            with st.spinner("Applying differential privacy..."):
-                try:
-                    protected_df = apply_dp_transformation(original_df, column_configs)
-                    set_protected_df(protected_df)
-                except Exception as e:
-                    st.error(f"Error applying DP: {e}")
-                    return
+            # Step 1: Apply DP
+            progress_placeholder = st.empty()
+            progress_placeholder.info("Step 1/2: Applying differential privacy...")
 
-            with st.spinner("Comparing datasets..."):
-                try:
-                    comparison = run_comparison(
-                        original_df, protected_df, column_configs
-                    )
-                    set_comparison_results(comparison)
-                except Exception as e:
-                    st.error(f"Error comparing datasets: {e}")
-                    return
+            try:
+                protected_df = apply_dp_transformation(original_df, column_configs)
+                set_protected_df(protected_df)
+            except Exception as e:
+                error_msg = str(e)
+                if ErrorMessages:
+                    st.error(ErrorMessages.TRANSFORM_ERROR.format(error=error_msg))
+                else:
+                    st.error(f"Error applying DP: {error_msg}")
+                return
 
-            st.success("Analysis complete!")
+            # Step 2: Compare
+            progress_placeholder.info("Step 2/2: Comparing datasets...")
+
+            try:
+                comparison = run_comparison(
+                    original_df, protected_df, column_configs
+                )
+                set_comparison_results(comparison)
+            except Exception as e:
+                error_msg = str(e)
+                if ErrorMessages:
+                    st.error(ErrorMessages.COMPARISON_ERROR.format(error=error_msg))
+                else:
+                    st.error(f"Error comparing datasets: {error_msg}")
+                return
+
+            progress_placeholder.empty()
+            st.success("Analysis complete! Results are shown below.")
             st.rerun()
 
         st.markdown("---")

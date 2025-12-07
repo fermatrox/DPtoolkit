@@ -15,6 +15,19 @@ from utils.session import clear_session_data
 from dp_toolkit.reports import PDFReportGenerator, ReportMetadata
 from dp_toolkit.analysis.comparator import DatasetComparison
 
+# Import UI utilities
+try:
+    from utils.ui_components import (
+        ErrorMessages,
+        show_success,
+        loading_state,
+    )
+except ImportError:
+    # Fallback if running standalone
+    ErrorMessages = None  # type: ignore
+    show_success = st.success  # type: ignore
+    loading_state = None  # type: ignore
+
 
 # =============================================================================
 # Session State Helpers
@@ -399,7 +412,7 @@ def render_pdf_report_section(
 
     # Generate PDF button
     if st.button("Generate PDF Report", type="secondary"):
-        with st.spinner("Generating PDF report..."):
+        with st.spinner("Generating PDF report... This may take a moment."):
             try:
                 pdf_bytes = generate_pdf_bytes(
                     original_df=original_df,
@@ -412,7 +425,14 @@ def render_pdf_report_section(
                 st.session_state["pdf_filename"] = pdf_filename
                 st.success("PDF report generated successfully!")
             except Exception as e:
-                st.error(f"Error generating PDF: {e}")
+                error_msg = str(e)
+                if ErrorMessages:
+                    st.error(ErrorMessages.PDF_GENERATION_ERROR.format(error=error_msg))
+                else:
+                    st.error(
+                        f"Error generating PDF: {error_msg}\n\n"
+                        "Try running the analysis again if this persists."
+                    )
                 return
 
     # Download button (if PDF was generated)

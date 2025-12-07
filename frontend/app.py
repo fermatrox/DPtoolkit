@@ -180,7 +180,7 @@ def render_sidebar() -> None:
 
         # Help section
         st.markdown("---")
-        with st.expander("Help"):
+        with st.expander("Help", expanded=False):
             st.markdown(
                 """
                 **How to use:**
@@ -193,8 +193,14 @@ def render_sidebar() -> None:
                 - **Epsilon (ε):** Controls privacy-utility tradeoff.
                   Lower = more privacy, more noise.
                 - **Mechanism:** Algorithm used to add noise.
+
+                **Need more help?**
+                Click the ℹ️ icons throughout the app for detailed explanations.
                 """
             )
+
+        # Version info
+        st.caption("v1.0.0 | Differential Privacy Toolkit")
 
 
 # =============================================================================

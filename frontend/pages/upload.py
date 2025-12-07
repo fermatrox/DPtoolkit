@@ -12,6 +12,21 @@ import streamlit as st
 
 from dp_toolkit.data.loader import ColumnInfo, ColumnType, DatasetInfo
 
+# Import UI utilities
+try:
+    from utils.ui_components import (
+        ErrorMessages,
+        show_error,
+        show_warning,
+        show_info,
+        show_success,
+        loading_state,
+        HELP_TEXTS,
+    )
+except ImportError:
+    # Fallback if running standalone
+    ErrorMessages = None  # type: ignore
+
 
 # =============================================================================
 # Constants
@@ -363,9 +378,13 @@ def render_upload_page() -> None:
     # Check file size
     file_size_mb = uploaded_file.size / (1024 * 1024)
     if file_size_mb > MAX_FILE_SIZE_MB:
-        st.error(
-            f"File too large ({file_size_mb:.1f} MB). Max: {MAX_FILE_SIZE_MB} MB"
-        )
+        if ErrorMessages:
+            st.error(ErrorMessages.FILE_TOO_LARGE.format(
+                size=file_size_mb,
+                max_size=MAX_FILE_SIZE_MB,
+            ))
+        else:
+            st.error(f"File too large ({file_size_mb:.1f} MB). Max: {MAX_FILE_SIZE_MB} MB")
         return
 
     st.markdown("---")
@@ -376,7 +395,11 @@ def render_upload_page() -> None:
     # Detect format
     file_format = detect_format(uploaded_file.name)
     if file_format is None:
-        st.error(f"Unsupported file format: {get_file_extension(uploaded_file.name)}")
+        ext = get_file_extension(uploaded_file.name)
+        if ErrorMessages:
+            st.error(ErrorMessages.FILE_FORMAT_UNSUPPORTED.format(extension=ext))
+        else:
+            st.error(f"Unsupported file format: {ext}")
         return
 
     # Load file with progress

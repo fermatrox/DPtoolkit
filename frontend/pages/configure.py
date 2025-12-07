@@ -17,6 +17,19 @@ from dp_toolkit.recommendations.advisor import (
 )
 from dp_toolkit.recommendations.classifier import SensitivityLevel
 
+# Import UI utilities
+try:
+    from utils.ui_components import (
+        ErrorMessages,
+        HELP_TEXTS,
+        help_tooltip,
+    )
+except ImportError:
+    # Fallback if running standalone
+    ErrorMessages = None  # type: ignore
+    HELP_TEXTS = {}
+    help_tooltip = lambda x: ""  # type: ignore # noqa: E731
+
 
 # =============================================================================
 # Enums and Constants
@@ -151,6 +164,10 @@ def render_global_settings() -> None:
     """Render global privacy settings."""
     st.markdown("### Global Settings")
 
+    # Show help expander for epsilon
+    with st.expander("What is Epsilon (ε)?", expanded=False):
+        st.markdown(HELP_TEXTS.get("epsilon", "Epsilon controls privacy vs utility tradeoff."))
+
     col1, col2, col3 = st.columns([2, 1, 1])
 
     with col1:
@@ -160,7 +177,7 @@ def render_global_settings() -> None:
             max_value=10.0,
             value=get_global_epsilon(),
             step=0.1,
-            help="Default privacy parameter for all columns. Lower = more privacy.",
+            help="Privacy parameter. Lower = stronger privacy (more noise). Higher = more utility (less noise).",
             key="global_epsilon_slider",
         )
         set_global_epsilon(global_eps)
