@@ -23,12 +23,16 @@ try:
         ErrorMessages,
         HELP_TEXTS,
         help_tooltip,
+        info_button,
+        metric_with_info,
     )
 except ImportError:
     # Fallback if running standalone
     ErrorMessages = None  # type: ignore
     HELP_TEXTS = {}
     help_tooltip = lambda x: ""  # type: ignore # noqa: E731
+    info_button = lambda *args, **kwargs: None  # type: ignore # noqa: E731
+    metric_with_info = lambda *args, **kwargs: None  # type: ignore # noqa: E731
 
 
 # =============================================================================
@@ -164,9 +168,8 @@ def render_global_settings() -> None:
     """Render global privacy settings."""
     st.markdown("### Global Settings")
 
-    # Show help expander for epsilon
-    with st.expander("What is Epsilon (ε)?", expanded=False):
-        st.markdown(HELP_TEXTS.get("epsilon", "Epsilon controls privacy vs utility tradeoff."))
+    # Show comprehensive help for understanding privacy settings
+    info_button("epsilon", "Learn about Epsilon (ε) - The Privacy Parameter")
 
     col1, col2, col3 = st.columns([2, 1, 1])
 
@@ -185,11 +188,14 @@ def render_global_settings() -> None:
     with col2:
         if global_eps <= 0.5:
             privacy_level = "High Privacy"
+            level_desc = "Strong protection, more noise"
         elif global_eps <= 2.0:
             privacy_level = "Balanced"
+            level_desc = "Good balance of privacy & utility"
         else:
             privacy_level = "High Utility"
-        st.metric("Privacy Level", privacy_level)
+            level_desc = "More accuracy, less privacy"
+        st.metric("Privacy Level", privacy_level, help=level_desc)
 
     with col3:
         # Calculate total epsilon for protected columns
@@ -199,7 +205,14 @@ def render_global_settings() -> None:
         total_eps = sum(
             configs[c].get("epsilon", global_eps) for c in protected
         )
-        st.metric("Total ε (Protected)", f"{total_eps:.2f}")
+        st.metric(
+            "Total ε (Protected)",
+            f"{total_eps:.2f}",
+            help="Sum of epsilon across all protected columns"
+        )
+
+    # Add info button for total epsilon
+    info_button("total_epsilon", "What does Total Epsilon mean?")
 
 
 def render_auto_recommend_button(df: pd.DataFrame, columns: List[str]) -> None:
@@ -269,6 +282,9 @@ def render_recommendations_summary(recommendations: DatasetRecommendation) -> No
             help="Sum of recommended epsilon values",
         )
 
+    # Add explanation for sensitivity levels
+    info_button("sensitivity", "What do the sensitivity levels mean?")
+
 
 def render_column_config_table(
     columns: List[str],
@@ -276,6 +292,18 @@ def render_column_config_table(
 ) -> None:
     """Render the column configuration table."""
     st.markdown("### Column Configuration")
+
+    # Add help expanders for protection modes and mechanisms
+    col_help1, col_help2 = st.columns(2)
+    with col_help1:
+        info_button("mechanism", "Understanding DP Mechanisms")
+    with col_help2:
+        with st.expander("ℹ️ Protection Mode Options"):
+            st.markdown(
+                "**Protect**: Apply differential privacy noise to protect individual values\n\n"
+                "**Passthrough**: Keep original values unchanged (no privacy protection)\n\n"
+                "**Exclude**: Remove this column entirely from the output"
+            )
 
     configs = get_column_configs()
     global_eps = get_global_epsilon()

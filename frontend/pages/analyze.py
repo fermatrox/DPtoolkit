@@ -36,6 +36,7 @@ try:
         safe_metric,
         safe_chart,
         ProgressTracker,
+        info_button,
     )
 except ImportError:
     # Fallback if running standalone
@@ -44,6 +45,7 @@ except ImportError:
     safe_metric = st.metric  # type: ignore
     safe_chart = None  # type: ignore
     ProgressTracker = None  # type: ignore
+    info_button = lambda *args, **kwargs: None  # type: ignore # noqa: E731
 
 
 # =============================================================================
@@ -184,14 +186,25 @@ def render_summary_tab(
             for cfg in column_configs.values()
             if cfg.get("mode") == "protect"
         )
-        st.metric("Total ε", f"{total_eps:.2f}")
+        st.metric(
+            "Total ε",
+            f"{total_eps:.2f}",
+            help="Sum of privacy budget used across all protected columns"
+        )
 
     with col4:
         if comparison.correlation_preservation:
             rate = comparison.correlation_preservation.preservation_rate * 100
-            st.metric("Correlation Preserved", f"{rate:.1f}%")
+            st.metric(
+                "Correlation Preserved",
+                f"{rate:.1f}%",
+                help="How well relationships between columns are maintained"
+            )
         else:
             st.metric("Correlation Preserved", "N/A")
+
+    # Add info button for correlation preservation
+    info_button("correlation_preservation", "What does Correlation Preserved mean?")
 
     st.markdown("---")
 
@@ -233,6 +246,13 @@ def render_summary_tab(
                     help="Root Mean Square Error across all numeric columns",
                 )
 
+        # Add explanations for MAE and RMSE
+        help_col1, help_col2 = st.columns(2)
+        with help_col1:
+            info_button("mae", "What is MAE (Mean Absolute Error)?")
+        with help_col2:
+            info_button("rmse", "What is RMSE (Root Mean Square Error)?")
+
         # Per-column summary table
         st.markdown("#### Per-Column Summary")
 
@@ -272,6 +292,13 @@ def render_summary_tab(
                 hide_index=True,
                 width="stretch",
             )
+
+        # Add explanations for categorical metrics
+        help_col1, help_col2 = st.columns(2)
+        with help_col1:
+            info_button("frequency_mae", "What is Frequency MAE?")
+        with help_col2:
+            info_button("category_drift", "What is Category Drift?")
 
 
 # =============================================================================
@@ -352,16 +379,25 @@ def render_numeric_comparison(
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        st.metric("MAE", f"{comparison.divergence.mae:.4f}")
+        st.metric(
+            "MAE",
+            f"{comparison.divergence.mae:.4f}",
+            help="Average difference between original and protected values"
+        )
 
     with col2:
-        st.metric("RMSE", f"{comparison.divergence.rmse:.4f}")
+        st.metric(
+            "RMSE",
+            f"{comparison.divergence.rmse:.4f}",
+            help="Root mean square error (penalizes large errors)"
+        )
 
     with col3:
         st.metric(
             "Mean",
             f"{comparison.divergence.mean_protected:.2f}",
             delta=f"{comparison.divergence.mean_difference:.2f}",
+            help="Protected mean vs difference from original"
         )
 
     with col4:
@@ -369,6 +405,16 @@ def render_numeric_comparison(
             "Std Dev",
             f"{comparison.divergence.std_protected:.2f}",
             delta=f"{comparison.divergence.std_difference:.2f}",
+            help="Protected std dev vs difference from original"
+        )
+
+    # Compact help row
+    with st.expander("ℹ️ Understanding these metrics"):
+        st.markdown(
+            "**MAE**: Lower is better. Shows average change in values.\n\n"
+            "**RMSE**: Lower is better. Large errors are penalized more.\n\n"
+            "**Mean/Std Dev**: The delta shows how much these statistics changed. "
+            "Small changes indicate good preservation of statistical properties."
         )
 
     st.markdown("---")
@@ -442,14 +488,35 @@ def render_categorical_comparison(
     col1, col2, col3 = st.columns(3)
 
     with col1:
-        st.metric("Categories", comparison.divergence.cardinality_original)
+        st.metric(
+            "Categories",
+            comparison.divergence.cardinality_original,
+            help="Number of unique categories in the original data"
+        )
 
     with col2:
-        st.metric("Frequency MAE", f"{comparison.divergence.frequency_mae:.4f}")
+        st.metric(
+            "Frequency MAE",
+            f"{comparison.divergence.frequency_mae:.4f}",
+            help="How much category proportions changed (lower is better)"
+        )
 
     with col3:
         cat_drift = comparison.divergence.category_drift
-        st.metric("Category Drift", f"{cat_drift:.4f}")
+        st.metric(
+            "Category Drift",
+            f"{cat_drift:.4f}",
+            help="Fraction of records that changed category (lower is better)"
+        )
+
+    # Compact help row
+    with st.expander("ℹ️ Understanding these metrics"):
+        st.markdown(
+            "**Frequency MAE**: Measures how well overall category proportions are preserved. "
+            "A value of 0.05 means proportions shifted by 5% on average.\n\n"
+            "**Category Drift**: Shows what percentage of individual records had their "
+            "category value changed. Higher drift is expected with lower epsilon."
+        )
 
     st.markdown("---")
 
@@ -512,16 +579,35 @@ def render_correlations_tab(
     col1, col2, col3, col4 = st.columns(4)
 
     with col1:
-        st.metric("Correlations Analyzed", corr_pres.total_count)
+        st.metric(
+            "Correlations Analyzed",
+            corr_pres.total_count,
+            help="Number of column pairs analyzed"
+        )
 
     with col2:
-        st.metric("Preserved", corr_pres.preserved_count)
+        st.metric(
+            "Preserved",
+            corr_pres.preserved_count,
+            help="Pairs where correlation changed by less than 0.1"
+        )
 
     with col3:
-        st.metric("Preservation Rate", f"{corr_pres.preservation_rate * 100:.1f}%")
+        st.metric(
+            "Preservation Rate",
+            f"{corr_pres.preservation_rate * 100:.1f}%",
+            help="Percentage of correlations that stayed similar"
+        )
 
     with col4:
-        st.metric("Max Difference", f"{corr_pres.max_absolute_error:.4f}")
+        st.metric(
+            "Max Difference",
+            f"{corr_pres.max_absolute_error:.4f}",
+            help="Largest correlation change observed"
+        )
+
+    # Explanation
+    info_button("correlation_preservation", "Why do correlations matter?")
 
     st.markdown("---")
 

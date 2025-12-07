@@ -22,10 +22,12 @@ try:
         show_success,
         loading_state,
         HELP_TEXTS,
+        info_button,
     )
 except ImportError:
     # Fallback if running standalone
     ErrorMessages = None  # type: ignore
+    info_button = lambda *args, **kwargs: None  # type: ignore # noqa: E731
 
 
 # =============================================================================
@@ -255,9 +257,17 @@ def render_dataset_summary(dataset_info: DatasetInfo) -> None:
     # Basic metrics
     col1, col2, col3, col4 = st.columns(4)
     with col1:
-        st.metric("Rows", f"{dataset_info.row_count:,}")
+        st.metric(
+            "Rows",
+            f"{dataset_info.row_count:,}",
+            help="Number of records in your dataset"
+        )
     with col2:
-        st.metric("Columns", dataset_info.column_count)
+        st.metric(
+            "Columns",
+            dataset_info.column_count,
+            help="Number of variables/fields"
+        )
     with col3:
         mem_mb = dataset_info.memory_usage_bytes / (1024 * 1024)
         st.metric("Memory", f"{mem_mb:.2f} MB")
@@ -265,7 +275,14 @@ def render_dataset_summary(dataset_info: DatasetInfo) -> None:
         null_total = sum(c.null_count for c in dataset_info.columns)
         total_cells = dataset_info.row_count * dataset_info.column_count
         null_pct = (null_total / total_cells * 100) if total_cells > 0 else 0
-        st.metric("Missing Values", f"{null_pct:.1f}%")
+        st.metric(
+            "Missing Values",
+            f"{null_pct:.1f}%",
+            help="Percentage of empty cells"
+        )
+
+    # Add context about dataset size and privacy
+    info_button("row_count", "Why does dataset size matter for privacy?")
 
 
 def render_column_summary(dataset_info: DatasetInfo) -> None:
@@ -305,6 +322,9 @@ def render_column_summary(dataset_info: DatasetInfo) -> None:
     for i, (type_name, count) in enumerate(type_counts.items()):
         with cols[i]:
             st.metric(type_name, count)
+
+    # Explain column types
+    info_button("column_types", "What do these column types mean?")
 
 
 def render_validation_warnings(dataset_info: DatasetInfo) -> bool:

@@ -316,60 +316,330 @@ def run_with_progress(
 
 
 HELP_TEXTS = {
-    # Privacy concepts
+    # ==========================================================================
+    # Privacy Concepts - Core Understanding
+    # ==========================================================================
     "epsilon": (
-        "**Epsilon (ε)** is the privacy parameter that controls the tradeoff "
-        "between privacy and data utility.\n\n"
-        "- **Lower ε (0.1-0.5)**: Stronger privacy, more noise, less accurate data\n"
-        "- **Medium ε (0.5-2.0)**: Balanced privacy and utility\n"
-        "- **Higher ε (2.0-10.0)**: Weaker privacy, less noise, more accurate data\n\n"
-        "For sensitive healthcare data, we recommend ε ≤ 1.0."
+        "## What is Epsilon (ε)?\n\n"
+        "Epsilon is the **privacy budget** - the most important parameter in "
+        "differential privacy. It controls how much information about any "
+        "individual could potentially leak from your data.\n\n"
+        "### How to interpret epsilon:\n"
+        "| Epsilon | Privacy Level | What it means |\n"
+        "|---------|--------------|---------------|\n"
+        "| 0.1-0.5 | **Very High Privacy** | Almost impossible to learn about individuals. Data may be quite noisy. |\n"
+        "| 0.5-1.0 | **High Privacy** | Strong protection. Good for sensitive healthcare data. |\n"
+        "| 1.0-2.0 | **Moderate Privacy** | Balanced tradeoff. Suitable for most use cases. |\n"
+        "| 2.0-5.0 | **Lower Privacy** | More accurate data, but less individual protection. |\n"
+        "| 5.0-10.0 | **Minimal Privacy** | Data stays close to original. Limited privacy guarantee. |\n\n"
+        "### Why it matters:\n"
+        "- **For HIPAA/GDPR compliance**: Use ε ≤ 1.0 for sensitive healthcare data\n"
+        "- **For research sharing**: ε = 1.0-2.0 often provides good utility\n"
+        "- **For internal analysis**: Higher ε may be acceptable\n\n"
+        "### The key tradeoff:\n"
+        "**Lower ε = More Privacy = More Noise = Less Accurate Data**\n\n"
+        "Think of it like blurring a photo - more blur (lower ε) makes it "
+        "harder to identify individuals, but also harder to see details."
     ),
     "delta": (
-        "**Delta (δ)** is an additional privacy parameter used with the "
-        "Gaussian mechanism.\n\n"
-        "It represents the probability that pure ε-differential privacy is violated. "
-        "Typical values are very small, like 10⁻⁵ or 10⁻⁶."
+        "## What is Delta (δ)?\n\n"
+        "Delta is an additional privacy parameter used with the Gaussian mechanism. "
+        "It represents the probability that the privacy guarantee could fail.\n\n"
+        "### Typical values:\n"
+        "- **1e-5 (0.00001)**: Good default for most datasets\n"
+        "- **1e-6 (0.000001)**: Stronger guarantee for sensitive data\n"
+        "- Should always be smaller than 1/n where n is your dataset size\n\n"
+        "### Why it matters:\n"
+        "A smaller delta means stronger privacy, but requires slightly more noise. "
+        "For most practical purposes, the default value works well."
     ),
     "mechanism": (
-        "**Differential Privacy Mechanisms** determine how noise is added:\n\n"
-        "- **Laplace**: Best for bounded numeric data (counts, ages)\n"
-        "- **Gaussian**: Better for unbounded data with known variance\n"
-        "- **Exponential**: Designed for categorical data"
+        "## Differential Privacy Mechanisms\n\n"
+        "The mechanism determines *how* noise is added to protect your data. "
+        "Different mechanisms work better for different types of data.\n\n"
+        "### Laplace Mechanism\n"
+        "**Best for:** Numeric data with known bounds (ages, counts, scores)\n"
+        "- Adds noise from a Laplace distribution\n"
+        "- Provides pure ε-differential privacy\n"
+        "- Simple and widely used\n\n"
+        "### Gaussian Mechanism\n"
+        "**Best for:** Numeric data without strict bounds\n"
+        "- Adds noise from a Normal (Gaussian) distribution\n"
+        "- Provides (ε,δ)-differential privacy\n"
+        "- Can produce tighter results for high-dimensional data\n\n"
+        "### Exponential Mechanism\n"
+        "**Best for:** Categorical data (diagnoses, departments, categories)\n"
+        "- Randomly selects categories based on their frequency\n"
+        "- Preserves the overall distribution shape\n"
+        "- Essential for non-numeric data\n\n"
+        "### Recommendation:\n"
+        "Use **Auto-Recommend** to let the system choose the best mechanism "
+        "for each column based on its data type."
     ),
     "sensitivity": (
-        "**Sensitivity** measures how much one person's data can change a result.\n\n"
-        "Higher sensitivity = more noise needed for the same privacy.\n"
-        "- **High**: SSN, names, exact addresses\n"
-        "- **Medium**: Age, ZIP code, diagnosis\n"
-        "- **Low**: General statistics, counts"
+        "## What is Sensitivity?\n\n"
+        "Sensitivity measures how much one person's data could affect the results. "
+        "It determines how much noise is needed to hide individual contributions.\n\n"
+        "### Sensitivity Levels:\n\n"
+        "**High Sensitivity** (Red badge)\n"
+        "- Direct identifiers: SSN, name, email, phone\n"
+        "- Unique characteristics: Exact address, medical record number\n"
+        "- **Recommendation**: Exclude or use very low epsilon (ε ≤ 0.5)\n\n"
+        "**Medium Sensitivity** (Yellow badge)\n"
+        "- Quasi-identifiers: Age, ZIP code, birth date\n"
+        "- Health information: Diagnosis codes, procedures\n"
+        "- **Recommendation**: Use moderate epsilon (ε = 0.5-2.0)\n\n"
+        "**Low Sensitivity** (Green badge)\n"
+        "- Aggregate data: Counts, averages\n"
+        "- Common attributes: Gender, broad categories\n"
+        "- **Recommendation**: Can use higher epsilon (ε = 2.0-5.0)\n\n"
+        "### Why it matters:\n"
+        "Properly classifying sensitivity helps you allocate your privacy budget "
+        "wisely - more protection where it's needed most."
     ),
-    # Protection modes
+    "total_epsilon": (
+        "## Total Privacy Budget\n\n"
+        "The **total epsilon** is the sum of epsilon values across all protected "
+        "columns. This represents your overall privacy expenditure.\n\n"
+        "### Why it matters:\n"
+        "In differential privacy, each query or column transformation 'spends' "
+        "some of your privacy budget. The total tells you the cumulative "
+        "privacy cost of your entire transformation.\n\n"
+        "### Guidelines:\n"
+        "- **Total ε < 5**: Generally considered good privacy practice\n"
+        "- **Total ε 5-10**: Moderate privacy, acceptable for less sensitive data\n"
+        "- **Total ε > 10**: Consider reducing epsilon per column or excluding more columns\n\n"
+        "### Tips to reduce total epsilon:\n"
+        "1. Exclude highly sensitive columns instead of protecting them\n"
+        "2. Use passthrough for non-sensitive columns\n"
+        "3. Lower individual column epsilon values"
+    ),
+    # ==========================================================================
+    # Protection Modes - What to do with each column
+    # ==========================================================================
     "protect": (
-        "**Protect (Apply DP)**: Differential privacy noise will be added "
-        "to this column to protect individual values."
+        "## Protect (Apply DP)\n\n"
+        "This column will have **differential privacy noise added** to protect "
+        "individual values while preserving statistical properties.\n\n"
+        "### What happens:\n"
+        "- Numeric columns: Random noise is added to each value\n"
+        "- Categorical columns: Some values may be randomly changed\n"
+        "- Overall distributions are approximately preserved\n\n"
+        "### Use this when:\n"
+        "- The column contains useful information for analysis\n"
+        "- Individual values need protection\n"
+        "- You want to keep the column in your output\n\n"
+        "### Example:\n"
+        "Age values like [25, 30, 35] might become [24.3, 31.2, 34.1] - "
+        "the average and distribution stay similar, but exact values change."
     ),
     "passthrough": (
-        "**Passthrough**: This column will be included unchanged.\n\n"
-        "Use for columns that don't contain sensitive information, like IDs."
+        "## Passthrough (Keep Original)\n\n"
+        "This column will be included **exactly as-is** without any modification.\n\n"
+        "### ⚠️ Important:\n"
+        "No privacy protection is applied! Only use for columns that:\n"
+        "- Don't contain sensitive information\n"
+        "- Are required for data linkage (non-sensitive IDs)\n"
+        "- Contain public or non-personal information\n\n"
+        "### Good candidates for passthrough:\n"
+        "- Record sequence numbers (not SSN or patient IDs!)\n"
+        "- Timestamps for time-series analysis\n"
+        "- Public reference codes\n\n"
+        "### ⛔ Never passthrough:\n"
+        "- Personal identifiers (names, SSN, email)\n"
+        "- Exact dates of birth\n"
+        "- Precise locations"
     ),
     "exclude": (
-        "**Exclude**: This column will be removed from the output.\n\n"
-        "Use for highly sensitive columns that shouldn't be shared at all."
+        "## Exclude (Remove)\n\n"
+        "This column will be **completely removed** from the output dataset.\n\n"
+        "### When to exclude:\n"
+        "- Direct identifiers (SSN, name, email, phone)\n"
+        "- Columns not needed for your analysis\n"
+        "- Highly sensitive data that can't be adequately protected\n"
+        "- Free-text fields that might contain identifying information\n\n"
+        "### Benefits:\n"
+        "- Zero privacy risk for excluded columns\n"
+        "- Reduces total privacy budget needed\n"
+        "- Simplifies the output dataset\n\n"
+        "### This is often the safest choice for:\n"
+        "- Patient names\n"
+        "- Social Security Numbers\n"
+        "- Medical record numbers\n"
+        "- Contact information"
     ),
-    # Data quality
+    # ==========================================================================
+    # Data Quality Metrics - Understanding the Analysis Results
+    # ==========================================================================
     "mae": (
-        "**Mean Absolute Error (MAE)**: Average difference between original "
-        "and protected values. Lower is better."
+        "## Mean Absolute Error (MAE)\n\n"
+        "MAE measures the **average difference** between original and protected values.\n\n"
+        "### How to interpret:\n"
+        "- **MAE = 0**: Perfect match (no privacy protection)\n"
+        "- **Lower MAE**: Protected data is closer to original\n"
+        "- **Higher MAE**: More noise was added (stronger privacy)\n\n"
+        "### Example:\n"
+        "If original ages are [25, 30, 35] and protected are [24, 32, 34]:\n"
+        "- Differences: |25-24|=1, |30-32|=2, |35-34|=1\n"
+        "- MAE = (1+2+1)/3 = **1.33**\n\n"
+        "### What's a good MAE?\n"
+        "It depends on your data and analysis needs:\n"
+        "- For ages: MAE of 2-5 years is often acceptable\n"
+        "- For counts: MAE of 5-10% of the mean is typical\n"
+        "- Compare to your analysis requirements"
     ),
     "rmse": (
-        "**Root Mean Square Error (RMSE)**: Similar to MAE but penalizes "
-        "larger errors more heavily. Lower is better."
+        "## Root Mean Square Error (RMSE)\n\n"
+        "RMSE is similar to MAE but **penalizes larger errors more heavily**.\n\n"
+        "### How it works:\n"
+        "1. Calculate squared differences\n"
+        "2. Take the average\n"
+        "3. Take the square root\n\n"
+        "### Why use RMSE over MAE?\n"
+        "- RMSE is more sensitive to outliers\n"
+        "- If you see RMSE >> MAE, there are some large individual errors\n"
+        "- If RMSE ≈ MAE, errors are consistent across values\n\n"
+        "### Interpretation:\n"
+        "- RMSE is in the same units as your data\n"
+        "- Lower is better\n"
+        "- Compare to the standard deviation of your original data"
     ),
     "correlation_preservation": (
-        "**Correlation Preservation**: How well relationships between columns "
-        "are maintained after adding noise.\n\n"
-        "A value of 100% means correlations are perfectly preserved."
+        "## Correlation Preservation\n\n"
+        "This measures how well **relationships between columns** are maintained "
+        "after adding differential privacy noise.\n\n"
+        "### Why it matters:\n"
+        "Many analyses depend on relationships between variables:\n"
+        "- Does age correlate with diagnosis?\n"
+        "- Is income related to health outcomes?\n"
+        "- Do certain departments have higher costs?\n\n"
+        "### How to interpret:\n"
+        "- **90-100%**: Excellent - correlations well preserved\n"
+        "- **70-90%**: Good - most relationships intact\n"
+        "- **50-70%**: Moderate - some relationships may be affected\n"
+        "- **<50%**: Poor - consider using higher epsilon\n\n"
+        "### If preservation is low:\n"
+        "1. Increase epsilon for correlated columns\n"
+        "2. Consider which correlations are most important\n"
+        "3. Test if your specific analysis is affected"
+    ),
+    "mean_difference": (
+        "## Mean Difference\n\n"
+        "The difference between the **average value** in the original vs protected data.\n\n"
+        "### Why it matters:\n"
+        "- If you're reporting averages, this shows how close you'll be\n"
+        "- Differential privacy is designed to preserve means well\n"
+        "- Large differences suggest potential issues\n\n"
+        "### Interpretation:\n"
+        "- Small difference = good for average-based analyses\n"
+        "- The sign (+/-) shows direction of change\n"
+        "- Compare to standard deviation for context"
+    ),
+    "std_difference": (
+        "## Standard Deviation Difference\n\n"
+        "How much the **spread of values** changed after protection.\n\n"
+        "### Why it matters:\n"
+        "Adding noise typically increases variability slightly. This metric "
+        "shows if your data spread has changed significantly.\n\n"
+        "### Interpretation:\n"
+        "- Small increase: Normal, expected\n"
+        "- Large increase: Epsilon may be too low\n"
+        "- Decrease: Unusual, check your data"
+    ),
+    "frequency_mae": (
+        "## Frequency MAE (Categorical)\n\n"
+        "For categorical columns, this measures how well the **distribution of "
+        "categories** is preserved.\n\n"
+        "### Example:\n"
+        "If original: 40% Category A, 60% Category B\n"
+        "And protected: 42% Category A, 58% Category B\n"
+        "Frequency MAE = (|40-42| + |60-58|)/2 = **2%**\n\n"
+        "### Good values:\n"
+        "- <5%: Excellent preservation\n"
+        "- 5-10%: Good for most analyses\n"
+        "- >10%: May affect category-based analyses"
+    ),
+    "category_drift": (
+        "## Category Drift\n\n"
+        "Measures how much individual records **changed categories** during protection.\n\n"
+        "### Why it matters:\n"
+        "Even if overall proportions are similar, individual values may have changed. "
+        "This affects analyses that depend on specific category combinations.\n\n"
+        "### Interpretation:\n"
+        "- 0%: No values changed (unlikely with DP)\n"
+        "- 10-20%: Low drift, good preservation\n"
+        "- 20-40%: Moderate drift\n"
+        "- >40%: High drift, consider higher epsilon"
+    ),
+    # ==========================================================================
+    # Dataset Information
+    # ==========================================================================
+    "row_count": (
+        "## Row Count\n\n"
+        "The number of records (rows) in your dataset.\n\n"
+        "### Why it matters for privacy:\n"
+        "- Larger datasets generally allow for more accurate results with the same privacy\n"
+        "- Very small datasets (<100 rows) may have limited utility after DP\n"
+        "- Consider if your sample size is sufficient for your analysis"
+    ),
+    "column_count": (
+        "## Column Count\n\n"
+        "The number of variables (columns) in your dataset.\n\n"
+        "### Privacy implications:\n"
+        "- More protected columns = higher total privacy budget\n"
+        "- Consider excluding columns not needed for analysis\n"
+        "- Each column's epsilon contributes to the total"
+    ),
+    "missing_values": (
+        "## Missing Values\n\n"
+        "Percentage of cells that contain null/empty values.\n\n"
+        "### Why it matters:\n"
+        "- Null values are preserved during DP transformation\n"
+        "- High missing rates may affect analysis quality\n"
+        "- Consider imputation before applying DP if appropriate"
+    ),
+    "column_types": (
+        "## Column Types\n\n"
+        "How each column is classified for differential privacy:\n\n"
+        "- **Numeric (🔢)**: Continuous values like age, income, measurements\n"
+        "- **Categorical (📋)**: Discrete categories like gender, diagnosis, department\n"
+        "- **Date (📅)**: Temporal values (converted to numeric for DP)\n"
+        "- **Unknown (❓)**: Type couldn't be determined - please review\n\n"
+        "### Why it matters:\n"
+        "The type determines which DP mechanism is used. Misclassification "
+        "can lead to poor results."
+    ),
+    # ==========================================================================
+    # Export Information
+    # ==========================================================================
+    "export_format": (
+        "## Export Formats\n\n"
+        "Choose the format that works best for your workflow:\n\n"
+        "### CSV\n"
+        "- Universal compatibility\n"
+        "- Human-readable\n"
+        "- Best for sharing and simple analysis\n\n"
+        "### Excel\n"
+        "- Includes metadata sheet with privacy settings\n"
+        "- Good for documentation and audit trails\n"
+        "- Compatible with spreadsheet software\n\n"
+        "### Parquet\n"
+        "- Best compression and performance\n"
+        "- Preserves data types exactly\n"
+        "- Ideal for large datasets and data pipelines"
+    ),
+    "pdf_report": (
+        "## PDF Privacy Report\n\n"
+        "Generate a comprehensive report documenting:\n\n"
+        "- **Executive Summary**: Privacy settings and key findings\n"
+        "- **Configuration Details**: What was done to each column\n"
+        "- **Statistical Comparison**: How the data changed\n"
+        "- **Visualizations**: Charts showing before/after\n\n"
+        "### Use this report for:\n"
+        "- Compliance documentation (HIPAA, GDPR)\n"
+        "- Sharing methodology with collaborators\n"
+        "- Audit trails\n"
+        "- Institutional review board (IRB) submissions"
     ),
 }
 
@@ -387,6 +657,50 @@ def show_help(topic: str, *, inline: bool = False) -> None:
         st.markdown(text)
     else:
         with st.expander("Help", expanded=False):
+            st.markdown(text)
+
+
+def info_button(
+    topic: str,
+    label: str = "What does this mean?",
+    *,
+    expanded: bool = False,
+    icon: str = "ℹ️",
+) -> None:
+    """Display an info button/expander for a topic.
+
+    Args:
+        topic: Help topic key from HELP_TEXTS.
+        label: Label for the expander.
+        expanded: Whether to show expanded by default.
+        icon: Icon to show next to label.
+    """
+    text = HELP_TEXTS.get(topic, f"No explanation available for '{topic}'")
+    with st.expander(f"{icon} {label}", expanded=expanded):
+        st.markdown(text)
+
+
+def metric_with_info(
+    label: str,
+    value: Any,
+    topic: str,
+    *,
+    delta: Optional[Any] = None,
+    help: Optional[str] = None,
+) -> None:
+    """Display a metric with an info expander below it.
+
+    Args:
+        label: Metric label.
+        value: Metric value.
+        topic: Help topic key for explanation.
+        delta: Optional delta value.
+        help: Optional short tooltip.
+    """
+    st.metric(label, value, delta=delta, help=help)
+    text = HELP_TEXTS.get(topic)
+    if text:
+        with st.expander(f"ℹ️ What is {label}?", expanded=False):
             st.markdown(text)
 
 

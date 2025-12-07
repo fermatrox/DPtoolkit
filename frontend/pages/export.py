@@ -21,12 +21,16 @@ try:
         ErrorMessages,
         show_success,
         loading_state,
+        info_button,
+        HELP_TEXTS,
     )
 except ImportError:
     # Fallback if running standalone
     ErrorMessages = None  # type: ignore
     show_success = st.success  # type: ignore
     loading_state = None  # type: ignore
+    info_button = lambda *args, **kwargs: None  # type: ignore # noqa: E731
+    HELP_TEXTS = {}  # type: ignore
 
 
 # =============================================================================
@@ -198,7 +202,11 @@ def render_configuration_summary(
             1 for cfg in column_configs.values()
             if cfg.get("mode") == "protect"
         )
-        st.metric("Protected Columns", protected_count)
+        st.metric(
+            "Protected Columns",
+            protected_count,
+            help="Columns with differential privacy applied"
+        )
 
     with col4:
         # Total epsilon
@@ -207,7 +215,14 @@ def render_configuration_summary(
             for cfg in column_configs.values()
             if cfg.get("mode") == "protect"
         )
-        st.metric("Total ε", f"{total_eps:.2f}")
+        st.metric(
+            "Total ε",
+            f"{total_eps:.2f}",
+            help="Total privacy budget used"
+        )
+
+    # Add info button for total epsilon
+    info_button("total_epsilon", "What does Total Epsilon mean for my privacy?")
 
     st.markdown("---")
 
@@ -277,6 +292,9 @@ def render_export_options(
             value=True,
             help="Include privacy configuration metadata with the export",
         )
+
+    # Add info button for export formats
+    info_button("export_format", "Which format should I choose?")
 
     st.markdown("---")
 
@@ -400,6 +418,9 @@ def render_pdf_report_section(
         "- Statistical comparison tables\n"
         "- Distribution and correlation visualizations"
     )
+
+    # Add info button for PDF report uses
+    info_button("pdf_report", "What can I use this report for?")
 
     # Generate filename
     original_name = dataset_info.get("filename", "dataset")
