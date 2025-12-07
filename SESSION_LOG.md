@@ -231,20 +231,68 @@
 | 3.4 | 74 | 438 |
 | 4.1 | 64 | 502 |
 
+#### Step 4.2: Dataset Transformer
+- Extended `dp_toolkit/data/transformer.py` with:
+- `ProtectionMode` enum (PROTECT, PASSTHROUGH, EXCLUDE)
+- `DatasetColumnConfig` dataclass for per-column configuration
+- `DatasetConfig` dataclass with:
+  - Global epsilon/delta settings
+  - Per-column configuration overrides
+  - Helper methods: protect_columns(), passthrough_columns(), exclude_columns()
+- `ColumnTransformSummary` dataclass for per-column transformation results
+- `DatasetTransformResult` dataclass with:
+  - Transformed DataFrame
+  - Column summaries, total epsilon/delta
+  - Lists of protected/passthrough/excluded columns
+  - Properties: column_count, protection_rate
+- `DatasetTransformer` class:
+  - `transform()` - main entry point with config
+  - `transform_with_budget()` - automatic epsilon allocation
+  - Progress callback support for UI integration
+- Key features:
+  - Three column modes: PROTECT (apply DP), PASSTHROUGH (keep unchanged), EXCLUDE (remove)
+  - Global vs per-column epsilon allocation
+  - Automatic budget division across protected columns
+  - Progress callback for UI integration
+- Convenience function: `transform_dataset()`
+- 34 new tests (536 total) including:
+  - DatasetConfig tests
+  - Basic transformation tests
+  - Privacy budget tracking tests
+  - Column mode tests
+  - Progress callback tests
+  - Edge cases (empty, single column, performance)
+
+### Test Summary
+| Step | New Tests | Total Tests |
+|------|-----------|-------------|
+| 1.1 | 0 | 0 |
+| 1.2 | 26 | 26 |
+| 1.3 | 27 | 53 |
+| 2.1 | 42 | 95 |
+| 2.2 | 78 | 173 |
+| 2.3 | 42 | 215 |
+| 3.1 | 55 | 270 |
+| 3.2 | 56 | 326 |
+| 3.3 | 38 | 364 |
+| 3.4 | 74 | 438 |
+| 4.1 | 64 | 502 |
+| 4.2 | 34 | 536 |
+
 ### Current State
-- All 502 tests passing
+- All 536 tests passing
 - Linting clean (flake8, black, mypy)
 - Phase 1 (Foundation) complete
 - Phase 2 (Statistical Profiling) complete
 - Phase 3 (DP Mechanisms) complete
-- Phase 4 Step 4.1 (Column Transformer) complete
+- Phase 4 Steps 4.1-4.2 (Transformation Pipeline) complete
 
 ### Next Step
-**Step 4.2: Dataset Transformer**
-- Process all columns based on config
-- Support: Protect, Passthrough, Exclude modes
-- Global vs per-column epsilon
-- Progress callback for UI
+**Step 4.3: Data Exporter**
+- Implement `dp_toolkit/data/exporter.py`
+- Export to CSV, Excel, Parquet
+- Include metadata in export
+- Preserve column order and types
 
 ### Open Issues / Decisions Needed
 None currently.

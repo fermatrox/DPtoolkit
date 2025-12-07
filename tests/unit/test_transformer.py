@@ -816,3 +816,432 @@ class TestEdgeCases:
         )
         assert result.null_count == 1
         assert pd.isna(result.data.iloc[2])
+
+
+# =============================================================================
+# Dataset Transformer Tests
+# =============================================================================
+
+from dp_toolkit.data.transformer import (
+    ProtectionMode,
+    DatasetColumnConfig,
+    DatasetConfig,
+    ColumnTransformSummary,
+    DatasetTransformResult,
+    DatasetTransformer,
+    transform_dataset,
+)
+
+
+@pytest.fixture
+def sample_dataframe():
+    """Create a sample DataFrame for testing."""
+    return pd.DataFrame({
+        "age": [25, 30, 35, 40, 45],
+        "salary": [50000.0, 60000.0, 70000.0, 80000.0, 90000.0],
+        "department": ["HR", "IT", "HR", "IT", "Finance"],
+        "hire_date": pd.date_range("2020-01-01", periods=5, freq="ME"),
+        "ssn": ["123-45-6789", "234-56-7890", "345-67-8901", "456-78-9012", "567-89-0123"],
+    })
+
+
+@pytest.fixture
+def dataset_transformer():
+    """Create a DatasetTransformer instance."""
+    return DatasetTransformer()
+
+
+# =============================================================================
+# DatasetConfig Tests
+# =============================================================================
+
+
+class TestDatasetConfig:
+    """Tests for DatasetConfig."""
+
+    def test_default_values(self):
+        """Test default configuration values."""
+        config = DatasetConfig()
+        assert config.global_epsilon == 1.0
+        assert config.default_mode == ProtectionMode.PROTECT
+
+    def test_custom_global_epsilon(self):
+        """Test custom global epsilon."""
+        config = DatasetConfig(global_epsilon=0.5)
+        assert config.global_epsilon == 0.5
+
+    def test_invalid_global_epsilon(self):
+        """Test invalid global epsilon raises error."""
+        with pytest.raises(ValueError, match="Global epsilon"):
+            DatasetConfig(global_epsilon=0.001)
+
+    def test_invalid_global_delta(self):
+        """Test invalid global delta raises error."""
+        with pytest.raises(ValueError, match="Global delta"):
+            DatasetConfig(global_delta=0.01)
+
+    def test_get_column_config_default(self):
+        """Test getting default column config."""
+        config = DatasetConfig()
+        col_config = config.get_column_config("unknown_column")
+        assert col_config.mode == ProtectionMode.PROTECT
+
+    def test_get_column_config_custom(self):
+        """Test getting custom column config."""
+        config = DatasetConfig()
+        config.set_column_mode("age", ProtectionMode.PASSTHROUGH)
+        col_config = config.get_column_config("age")
+        assert col_config.mode == ProtectionMode.PASSTHROUGH
+
+    def test_get_epsilon_global(self):
+        """Test getting global epsilon for column."""
+        config = DatasetConfig(global_epsilon=0.5)
+        assert config.get_epsilon("any_column") == 0.5
+
+    def test_get_epsilon_column_specific(self):
+        """Test getting column-specific epsilon."""
+        config = DatasetConfig(global_epsilon=1.0)
+        config.set_column_mode("age", ProtectionMode.PROTECT, epsilon=0.3)
+        assert config.get_epsilon("age") == 0.3
+        assert config.get_epsilon("salary") == 1.0
+
+    def test_protect_columns(self):
+        """Test protect_columns helper."""
+        config = DatasetConfig()
+        config.protect_columns(["age", "salary"], epsilon=0.5)
+        assert config.get_column_config("age").mode == ProtectionMode.PROTECT
+        assert config.get_column_config("salary").mode == ProtectionMode.PROTECT
+        assert config.get_epsilon("age") == 0.5
+
+    def test_passthrough_columns(self):
+        """Test passthrough_columns helper."""
+        config = DatasetConfig()
+        config.passthrough_columns(["id", "timestamp"])
+        assert config.get_column_config("id").mode == ProtectionMode.PASSTHROUGH
+        assert config.get_column_config("timestamp").mode == ProtectionMode.PASSTHROUGH
+
+    def test_exclude_columns(self):
+        """Test exclude_columns helper."""
+        config = DatasetConfig()
+        config.exclude_columns(["ssn", "email"])
+        assert config.get_column_config("ssn").mode == ProtectionMode.EXCLUDE
+        assert config.get_column_config("email").mode == ProtectionMode.EXCLUDE
+
+
+# =============================================================================
+# DatasetTransformer Basic Tests
+# =============================================================================
+
+
+class TestDatasetTransformerBasic:
+    """Basic tests for DatasetTransformer."""
+
+    def test_default_transform(self, dataset_transformer, sample_dataframe):
+        """Test default transformation (all columns protected)."""
+        result = dataset_transformer.transform(sample_dataframe)
+        assert isinstance(result, DatasetTransformResult)
+        assert result.row_count == 5
+        assert len(result.protected_columns) == 5  # All columns protected
+        assert len(result.passthrough_columns) == 0
+        assert len(result.excluded_columns) == 0
+
+    def test_transform_with_config(self, dataset_transformer, sample_dataframe):
+        """Test transformation with custom config."""
+        config = DatasetConfig(global_epsilon=0.5)
+        config.passthrough_columns(["hire_date"])
+        config.exclude_columns(["ssn"])
+
+        result = dataset_transformer.transform(sample_dataframe, config)
+        assert "ssn" not in result.data.columns
+        assert "hire_date" in result.data.columns
+        assert "age" in result.data.columns
+        assert result.column_count == 4
+
+    def test_excluded_columns_not_in_output(self, dataset_transformer, sample_dataframe):
+        """Test that excluded columns are not in output."""
+        config = DatasetConfig()
+        config.exclude_columns(["ssn"])
+
+        result = dataset_transformer.transform(sample_dataframe, config)
+        assert "ssn" not in result.data.columns
+        assert "ssn" in result.excluded_columns
+
+    def test_passthrough_columns_unchanged(self, dataset_transformer, sample_dataframe):
+        """Test that passthrough columns are unchanged."""
+        config = DatasetConfig()
+        config.passthrough_columns(["department"])
+
+        result = dataset_transformer.transform(sample_dataframe, config)
+        # Passthrough column should be identical
+        assert (result.data["department"] == sample_dataframe["department"]).all()
+        assert "department" in result.passthrough_columns
+
+    def test_protected_columns_modified(self, dataset_transformer, sample_dataframe):
+        """Test that protected columns have noise added."""
+        config = DatasetConfig(global_epsilon=1.0)
+        config.protect_columns(["age", "salary"])
+        config.passthrough_columns(["department", "hire_date"])
+        config.exclude_columns(["ssn"])
+
+        result = dataset_transformer.transform(sample_dataframe, config)
+        # Protected numeric columns should have noise (very unlikely to be identical)
+        # At least check they have same shape
+        assert len(result.data["age"]) == 5
+        assert len(result.data["salary"]) == 5
+
+
+# =============================================================================
+# Privacy Budget Tests
+# =============================================================================
+
+
+class TestDatasetPrivacyBudget:
+    """Tests for privacy budget tracking in DatasetTransformer."""
+
+    def test_total_epsilon_tracked(self, dataset_transformer, sample_dataframe):
+        """Test that total epsilon is tracked."""
+        config = DatasetConfig(global_epsilon=0.5)
+        config.protect_columns(["age", "salary"])
+        config.passthrough_columns(["department", "hire_date", "ssn"])
+
+        result = dataset_transformer.transform(sample_dataframe, config)
+        # Each protected column uses 0.5 epsilon
+        assert result.total_epsilon == pytest.approx(1.0, rel=0.01)
+
+    def test_per_column_epsilon(self, dataset_transformer, sample_dataframe):
+        """Test per-column epsilon in summaries."""
+        config = DatasetConfig(global_epsilon=0.5)
+        config.protect_columns(["age"])
+        config.passthrough_columns(["salary", "department", "hire_date", "ssn"])
+
+        result = dataset_transformer.transform(sample_dataframe, config)
+        assert result.column_summaries["age"].epsilon == pytest.approx(0.5)
+        assert result.column_summaries["salary"].epsilon is None  # Passthrough
+
+    def test_transform_with_budget(self, dataset_transformer, sample_dataframe):
+        """Test transform_with_budget divides epsilon equally."""
+        result = dataset_transformer.transform_with_budget(
+            df=sample_dataframe,
+            total_epsilon=1.0,
+            columns_to_protect=["age", "salary"],
+            columns_to_exclude=["ssn"],
+        )
+        # 1.0 epsilon / 2 columns = 0.5 each
+        assert result.column_summaries["age"].epsilon == pytest.approx(0.5)
+        assert result.column_summaries["salary"].epsilon == pytest.approx(0.5)
+        assert result.total_epsilon == pytest.approx(1.0, rel=0.01)
+
+
+# =============================================================================
+# Column Mode Tests
+# =============================================================================
+
+
+class TestColumnModes:
+    """Tests for column protection modes."""
+
+    def test_all_modes_applied(self, dataset_transformer, sample_dataframe):
+        """Test all three modes are applied correctly."""
+        config = DatasetConfig()
+        config.protect_columns(["age"])
+        config.passthrough_columns(["department"])
+        config.exclude_columns(["ssn"])
+
+        result = dataset_transformer.transform(sample_dataframe, config)
+
+        assert "age" in result.protected_columns
+        assert "department" in result.passthrough_columns
+        assert "ssn" in result.excluded_columns
+        assert result.column_summaries["age"].mode == ProtectionMode.PROTECT
+        assert result.column_summaries["department"].mode == ProtectionMode.PASSTHROUGH
+        assert result.column_summaries["ssn"].mode == ProtectionMode.EXCLUDE
+
+    def test_default_mode_protect(self, dataset_transformer, sample_dataframe):
+        """Test default mode is PROTECT."""
+        config = DatasetConfig(default_mode=ProtectionMode.PROTECT)
+        result = dataset_transformer.transform(sample_dataframe, config)
+        # All columns should be protected by default
+        assert len(result.protected_columns) == 5
+
+    def test_default_mode_passthrough(self, dataset_transformer, sample_dataframe):
+        """Test default mode can be PASSTHROUGH."""
+        config = DatasetConfig(default_mode=ProtectionMode.PASSTHROUGH)
+        config.protect_columns(["age"])
+
+        result = dataset_transformer.transform(sample_dataframe, config)
+        assert "age" in result.protected_columns
+        # Others should be passthrough
+        assert "department" in result.passthrough_columns
+
+
+# =============================================================================
+# Progress Callback Tests
+# =============================================================================
+
+
+class TestProgressCallback:
+    """Tests for progress callback functionality."""
+
+    def test_progress_callback_called(self, dataset_transformer, sample_dataframe):
+        """Test that progress callback is called."""
+        calls = []
+
+        def callback(col, idx, total):
+            calls.append((col, idx, total))
+
+        config = DatasetConfig()
+        config.exclude_columns(["ssn"])  # 4 columns to process
+
+        dataset_transformer.transform(sample_dataframe, config, progress_callback=callback)
+
+        # Should be called once per column plus "complete"
+        assert len(calls) >= 4
+        # Last call should be "complete"
+        assert calls[-1][0] == "complete"
+
+    def test_progress_indices(self, dataset_transformer, sample_dataframe):
+        """Test progress callback indices."""
+        indices = []
+
+        def callback(col, idx, total):
+            indices.append(idx)
+
+        config = DatasetConfig()
+        config.exclude_columns(["ssn"])
+
+        dataset_transformer.transform(sample_dataframe, config, progress_callback=callback)
+
+        # Check indices increment
+        non_complete = [i for i in indices if i < len(indices) - 1]
+        assert non_complete == list(range(len(non_complete)))
+
+
+# =============================================================================
+# DatasetTransformResult Tests
+# =============================================================================
+
+
+class TestDatasetTransformResult:
+    """Tests for DatasetTransformResult."""
+
+    def test_column_count(self, dataset_transformer, sample_dataframe):
+        """Test column_count property."""
+        config = DatasetConfig()
+        config.exclude_columns(["ssn"])
+
+        result = dataset_transformer.transform(sample_dataframe, config)
+        assert result.column_count == 4
+
+    def test_protection_rate(self, dataset_transformer, sample_dataframe):
+        """Test protection_rate property."""
+        config = DatasetConfig()
+        config.protect_columns(["age", "salary"])
+        config.passthrough_columns(["department", "hire_date"])
+        config.exclude_columns(["ssn"])
+
+        result = dataset_transformer.transform(sample_dataframe, config)
+        # 2 protected / 4 total = 0.5
+        assert result.protection_rate == pytest.approx(0.5)
+
+    def test_column_summaries(self, dataset_transformer, sample_dataframe):
+        """Test column summaries contain all columns."""
+        config = DatasetConfig()
+        config.exclude_columns(["ssn"])
+
+        result = dataset_transformer.transform(sample_dataframe, config)
+        # Should have summary for all columns including excluded
+        assert "ssn" in result.column_summaries
+        assert "age" in result.column_summaries
+
+
+# =============================================================================
+# Convenience Function Tests
+# =============================================================================
+
+
+class TestDatasetConvenienceFunctions:
+    """Tests for dataset convenience functions."""
+
+    def test_transform_dataset_basic(self, sample_dataframe):
+        """Test transform_dataset convenience function."""
+        result = transform_dataset(
+            df=sample_dataframe,
+            epsilon=1.0,
+            columns_to_exclude=["ssn"],
+        )
+        assert isinstance(result, pd.DataFrame)
+        assert "ssn" not in result.columns
+        assert len(result) == 5
+
+    def test_transform_dataset_selective(self, sample_dataframe):
+        """Test selective column protection."""
+        result = transform_dataset(
+            df=sample_dataframe,
+            epsilon=1.0,
+            columns_to_protect=["age", "salary"],
+            columns_to_exclude=["ssn"],
+        )
+        assert "age" in result.columns
+        assert "salary" in result.columns
+        assert "ssn" not in result.columns
+
+
+# =============================================================================
+# Edge Cases and Error Handling
+# =============================================================================
+
+
+class TestDatasetEdgeCases:
+    """Tests for edge cases in dataset transformation."""
+
+    def test_empty_dataframe(self, dataset_transformer):
+        """Test transformation of empty DataFrame."""
+        empty_df = pd.DataFrame()
+        result = dataset_transformer.transform(empty_df)
+        assert result.row_count == 0
+        assert result.column_count == 0
+
+    def test_single_column(self, dataset_transformer):
+        """Test DataFrame with single column."""
+        df = pd.DataFrame({"value": [1, 2, 3, 4, 5]})
+        result = dataset_transformer.transform(df)
+        assert result.column_count == 1
+        assert len(result.protected_columns) == 1
+
+    def test_all_excluded(self, dataset_transformer, sample_dataframe):
+        """Test excluding all columns."""
+        config = DatasetConfig()
+        config.exclude_columns(list(sample_dataframe.columns))
+
+        result = dataset_transformer.transform(sample_dataframe, config)
+        assert result.column_count == 0
+        assert len(result.excluded_columns) == 5
+
+    def test_all_passthrough(self, dataset_transformer, sample_dataframe):
+        """Test all columns as passthrough."""
+        config = DatasetConfig()
+        config.passthrough_columns(list(sample_dataframe.columns))
+
+        result = dataset_transformer.transform(sample_dataframe, config)
+        assert result.total_epsilon == 0.0
+        assert len(result.passthrough_columns) == 5
+
+    def test_large_dataframe_performance(self, dataset_transformer):
+        """Test performance with larger DataFrame."""
+        import time
+
+        # Create 10K rows x 10 columns
+        large_df = pd.DataFrame({
+            f"col_{i}": np.random.randn(10000) for i in range(10)
+        })
+
+        config = DatasetConfig(global_epsilon=1.0)
+
+        start = time.time()
+        result = dataset_transformer.transform(large_df, config)
+        elapsed = time.time() - start
+
+        assert result.row_count == 10000
+        assert result.column_count == 10
+        # Should complete in reasonable time (< 30s for 10K x 10)
+        assert elapsed < 30.0

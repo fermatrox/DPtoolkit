@@ -781,3 +781,487 @@ def transform_date(
         unit=unit,
     )
     return result.data
+
+
+# =============================================================================
+# Dataset Transformer - Protection Modes
+# =============================================================================
+
+
+class ProtectionMode(Enum):
+    """Mode for how a column should be handled during transformation.
+
+    Attributes:
+        PROTECT: Apply differential privacy transformation.
+        PASSTHROUGH: Keep column unchanged (no DP applied).
+        EXCLUDE: Remove column from output entirely.
+    """
+
+    PROTECT = "protect"
+    PASSTHROUGH = "passthrough"
+    EXCLUDE = "exclude"
+
+
+@dataclass
+class DatasetColumnConfig:
+    """Configuration for a single column in dataset transformation.
+
+    Attributes:
+        mode: How to handle this column (protect, passthrough, exclude).
+        epsilon: Privacy parameter (only used if mode is PROTECT).
+        lower: Lower bound for bounded numeric data.
+        upper: Upper bound for bounded numeric data.
+        delta: Delta parameter for Gaussian mechanism.
+        sensitivity: User-specified sensitivity.
+        preserve_type: Whether to preserve integer types.
+    """
+
+    mode: ProtectionMode = ProtectionMode.PROTECT
+    epsilon: Optional[float] = None  # None means use global epsilon
+    lower: Optional[float] = None
+    upper: Optional[float] = None
+    delta: Optional[float] = None
+    sensitivity: Optional[float] = None
+    preserve_type: bool = True
+
+
+@dataclass
+class DatasetConfig:
+    """Configuration for transforming an entire dataset.
+
+    Attributes:
+        global_epsilon: Default epsilon for all protected columns.
+        global_delta: Default delta for Gaussian mechanisms.
+        column_configs: Per-column configuration overrides.
+        default_mode: Default protection mode for unconfigured columns.
+    """
+
+    global_epsilon: float = 1.0
+    global_delta: float = DEFAULT_DELTA
+    column_configs: Dict[str, DatasetColumnConfig] = field(default_factory=dict)
+    default_mode: ProtectionMode = ProtectionMode.PROTECT
+
+    def __post_init__(self) -> None:
+        """Validate configuration."""
+        if self.global_epsilon < EPSILON_MIN or self.global_epsilon > EPSILON_MAX:
+            raise ValueError(
+                f"Global epsilon must be in [{EPSILON_MIN}, {EPSILON_MAX}], "
+                f"got {self.global_epsilon}"
+            )
+        if self.global_delta < DELTA_MIN or self.global_delta > DELTA_MAX:
+            raise ValueError(
+                f"Global delta must be in [{DELTA_MIN}, {DELTA_MAX}], "
+                f"got {self.global_delta}"
+            )
+
+    def get_column_config(self, column: str) -> DatasetColumnConfig:
+        """Get configuration for a specific column.
+
+        Args:
+            column: Column name.
+
+        Returns:
+            Column configuration (from column_configs or default).
+        """
+        if column in self.column_configs:
+            return self.column_configs[column]
+        return DatasetColumnConfig(mode=self.default_mode)
+
+    def get_epsilon(self, column: str) -> float:
+        """Get epsilon for a specific column.
+
+        Args:
+            column: Column name.
+
+        Returns:
+            Epsilon value (column-specific or global).
+        """
+        config = self.get_column_config(column)
+        if config.epsilon is not None:
+            return config.epsilon
+        return self.global_epsilon
+
+    def set_column_mode(
+        self,
+        column: str,
+        mode: ProtectionMode,
+        epsilon: Optional[float] = None,
+        **kwargs: Any,
+    ) -> None:
+        """Set the protection mode for a column.
+
+        Args:
+            column: Column name.
+            mode: Protection mode.
+            epsilon: Optional column-specific epsilon.
+            **kwargs: Additional column config parameters.
+        """
+        self.column_configs[column] = DatasetColumnConfig(
+            mode=mode,
+            epsilon=epsilon,
+            **kwargs,
+        )
+
+    def protect_columns(
+        self, columns: List[str], epsilon: Optional[float] = None
+    ) -> None:
+        """Set multiple columns to PROTECT mode.
+
+        Args:
+            columns: List of column names.
+            epsilon: Optional epsilon for all these columns.
+        """
+        for col in columns:
+            self.set_column_mode(col, ProtectionMode.PROTECT, epsilon=epsilon)
+
+    def passthrough_columns(self, columns: List[str]) -> None:
+        """Set multiple columns to PASSTHROUGH mode.
+
+        Args:
+            columns: List of column names.
+        """
+        for col in columns:
+            self.set_column_mode(col, ProtectionMode.PASSTHROUGH)
+
+    def exclude_columns(self, columns: List[str]) -> None:
+        """Set multiple columns to EXCLUDE mode.
+
+        Args:
+            columns: List of column names.
+        """
+        for col in columns:
+            self.set_column_mode(col, ProtectionMode.EXCLUDE)
+
+
+@dataclass
+class ColumnTransformSummary:
+    """Summary of transformation for a single column.
+
+    Attributes:
+        column_name: Name of the column.
+        mode: Protection mode applied.
+        mechanism_type: DP mechanism used (if protected).
+        epsilon: Epsilon used (if protected).
+        delta: Delta used (if Gaussian).
+        null_count: Number of null values.
+        error: Error message if transformation failed.
+    """
+
+    column_name: str
+    mode: ProtectionMode
+    mechanism_type: Optional[MechanismType] = None
+    epsilon: Optional[float] = None
+    delta: Optional[float] = None
+    null_count: int = 0
+    error: Optional[str] = None
+
+
+@dataclass
+class DatasetTransformResult:
+    """Result of transforming an entire dataset.
+
+    Attributes:
+        data: Transformed DataFrame.
+        column_summaries: Per-column transformation summaries.
+        total_epsilon: Total privacy budget consumed.
+        total_delta: Total delta consumed.
+        protected_columns: List of columns that were protected.
+        passthrough_columns: List of columns passed through unchanged.
+        excluded_columns: List of columns excluded from output.
+        row_count: Number of rows in the dataset.
+    """
+
+    data: pd.DataFrame
+    column_summaries: Dict[str, ColumnTransformSummary]
+    total_epsilon: float
+    total_delta: Optional[float]
+    protected_columns: List[str]
+    passthrough_columns: List[str]
+    excluded_columns: List[str]
+    row_count: int
+
+    @property
+    def column_count(self) -> int:
+        """Get number of columns in output."""
+        return len(self.data.columns)
+
+    @property
+    def protection_rate(self) -> float:
+        """Get fraction of output columns that were protected."""
+        if self.column_count == 0:
+            return 0.0
+        return len(self.protected_columns) / self.column_count
+
+
+# Type alias for progress callback
+ProgressCallback = Optional[Any]  # Callable[[str, int, int], None]
+
+
+class DatasetTransformer:
+    """Transform entire datasets with differential privacy.
+
+    This class processes all columns in a DataFrame according to a
+    configuration that specifies how each column should be handled:
+    - PROTECT: Apply DP transformation
+    - PASSTHROUGH: Keep unchanged
+    - EXCLUDE: Remove from output
+
+    Example:
+        >>> config = DatasetConfig(global_epsilon=1.0)
+        >>> config.passthrough_columns(['id', 'timestamp'])
+        >>> config.exclude_columns(['ssn', 'email'])
+        >>> transformer = DatasetTransformer()
+        >>> result = transformer.transform(df, config)
+        >>> protected_df = result.data
+
+    Attributes:
+        column_transformer: Internal ColumnTransformer instance.
+    """
+
+    def __init__(self) -> None:
+        """Initialize the dataset transformer."""
+        self._column_transformer = ColumnTransformer()
+
+    @property
+    def column_transformer(self) -> ColumnTransformer:
+        """Get the internal column transformer."""
+        return self._column_transformer
+
+    def transform(
+        self,
+        df: pd.DataFrame,
+        config: Optional[DatasetConfig] = None,
+        progress_callback: ProgressCallback = None,
+    ) -> DatasetTransformResult:
+        """Transform a dataset with differential privacy.
+
+        Args:
+            df: Input DataFrame to transform.
+            config: Dataset configuration. If None, uses defaults.
+            progress_callback: Optional callback for progress updates.
+                Called as callback(column_name, current_index, total_columns).
+
+        Returns:
+            DatasetTransformResult with transformed data and metadata.
+        """
+        if config is None:
+            config = DatasetConfig()
+
+        # Categorize columns by mode
+        protected_cols: List[str] = []
+        passthrough_cols: List[str] = []
+        excluded_cols: List[str] = []
+
+        for col in df.columns:
+            col_config = config.get_column_config(col)
+            if col_config.mode == ProtectionMode.PROTECT:
+                protected_cols.append(col)
+            elif col_config.mode == ProtectionMode.PASSTHROUGH:
+                passthrough_cols.append(col)
+            else:  # EXCLUDE
+                excluded_cols.append(col)
+
+        # Build output DataFrame
+        output_columns = protected_cols + passthrough_cols
+        total_columns = len(output_columns)
+        result_data: Dict[str, pd.Series] = {}
+        column_summaries: Dict[str, ColumnTransformSummary] = {}
+        total_epsilon = 0.0
+        total_delta: Optional[float] = None
+
+        # Process each column
+        for idx, col in enumerate(output_columns):
+            # Progress callback
+            if progress_callback is not None:
+                progress_callback(col, idx, total_columns)
+
+            col_config = config.get_column_config(col)
+
+            if col_config.mode == ProtectionMode.PASSTHROUGH:
+                # Passthrough: copy unchanged
+                result_data[col] = df[col].copy()
+                column_summaries[col] = ColumnTransformSummary(
+                    column_name=col,
+                    mode=ProtectionMode.PASSTHROUGH,
+                    null_count=int(df[col].isna().sum()),
+                )
+            else:
+                # Protect: apply DP transformation
+                epsilon = config.get_epsilon(col)
+                try:
+                    transform_result = self._transform_column(
+                        series=df[col],
+                        epsilon=epsilon,
+                        col_config=col_config,
+                        global_delta=config.global_delta,
+                    )
+                    result_data[col] = transform_result.data
+                    column_summaries[col] = ColumnTransformSummary(
+                        column_name=col,
+                        mode=ProtectionMode.PROTECT,
+                        mechanism_type=transform_result.mechanism_type,
+                        epsilon=transform_result.privacy_usage.epsilon,
+                        delta=transform_result.privacy_usage.delta,
+                        null_count=transform_result.null_count,
+                    )
+                    # Accumulate privacy budget
+                    total_epsilon += transform_result.privacy_usage.epsilon
+                    if transform_result.privacy_usage.delta is not None:
+                        if total_delta is None:
+                            total_delta = 0.0
+                        total_delta += transform_result.privacy_usage.delta
+                except Exception as e:
+                    # On error, passthrough with error noted
+                    result_data[col] = df[col].copy()
+                    column_summaries[col] = ColumnTransformSummary(
+                        column_name=col,
+                        mode=ProtectionMode.PROTECT,
+                        null_count=int(df[col].isna().sum()),
+                        error=str(e),
+                    )
+
+        # Add summaries for excluded columns
+        for col in excluded_cols:
+            column_summaries[col] = ColumnTransformSummary(
+                column_name=col,
+                mode=ProtectionMode.EXCLUDE,
+            )
+
+        # Final progress callback
+        if progress_callback is not None:
+            progress_callback("complete", total_columns, total_columns)
+
+        # Build output DataFrame preserving column order
+        output_df = pd.DataFrame(result_data)
+
+        return DatasetTransformResult(
+            data=output_df,
+            column_summaries=column_summaries,
+            total_epsilon=total_epsilon,
+            total_delta=total_delta,
+            protected_columns=protected_cols,
+            passthrough_columns=passthrough_cols,
+            excluded_columns=excluded_cols,
+            row_count=len(df),
+        )
+
+    def _transform_column(
+        self,
+        series: pd.Series,
+        epsilon: float,
+        col_config: DatasetColumnConfig,
+        global_delta: float,
+    ) -> TransformResult:
+        """Transform a single column with DP.
+
+        Args:
+            series: Column data.
+            epsilon: Epsilon to use.
+            col_config: Column configuration.
+            global_delta: Global delta for Gaussian.
+
+        Returns:
+            TransformResult from column transformation.
+        """
+        # Build ColumnConfig from DatasetColumnConfig
+        column_config = ColumnConfig(
+            epsilon=epsilon,
+            lower=col_config.lower,
+            upper=col_config.upper,
+            delta=col_config.delta or global_delta,
+            sensitivity=col_config.sensitivity,
+            preserve_type=col_config.preserve_type,
+        )
+
+        return self._column_transformer.transform(
+            series=series,
+            config=column_config,
+        )
+
+    def transform_with_budget(
+        self,
+        df: pd.DataFrame,
+        total_epsilon: float,
+        columns_to_protect: Optional[List[str]] = None,
+        columns_to_exclude: Optional[List[str]] = None,
+        progress_callback: ProgressCallback = None,
+    ) -> DatasetTransformResult:
+        """Transform dataset with automatic epsilon allocation.
+
+        Automatically divides the total epsilon budget equally among
+        all protected columns.
+
+        Args:
+            df: Input DataFrame.
+            total_epsilon: Total privacy budget to spend.
+            columns_to_protect: Columns to protect (None = all except excluded).
+            columns_to_exclude: Columns to exclude from output.
+            progress_callback: Optional progress callback.
+
+        Returns:
+            DatasetTransformResult with transformed data.
+        """
+        columns_to_exclude = columns_to_exclude or []
+
+        if columns_to_protect is None:
+            # Protect all columns except excluded
+            columns_to_protect = [c for c in df.columns if c not in columns_to_exclude]
+
+        # Calculate per-column epsilon
+        n_protected = len(columns_to_protect)
+        if n_protected == 0:
+            per_column_epsilon = total_epsilon
+        else:
+            per_column_epsilon = total_epsilon / n_protected
+
+        # Clamp to valid range
+        per_column_epsilon = max(EPSILON_MIN, min(EPSILON_MAX, per_column_epsilon))
+
+        # Build config
+        config = DatasetConfig(global_epsilon=per_column_epsilon)
+        config.protect_columns(columns_to_protect)
+        config.exclude_columns(columns_to_exclude)
+
+        # Set non-protected, non-excluded columns to passthrough
+        for col in df.columns:
+            if col not in columns_to_protect and col not in columns_to_exclude:
+                config.set_column_mode(col, ProtectionMode.PASSTHROUGH)
+
+        return self.transform(df, config, progress_callback)
+
+
+# =============================================================================
+# Dataset Convenience Functions
+# =============================================================================
+
+
+def transform_dataset(
+    df: pd.DataFrame,
+    epsilon: float = 1.0,
+    columns_to_protect: Optional[List[str]] = None,
+    columns_to_exclude: Optional[List[str]] = None,
+    progress_callback: ProgressCallback = None,
+) -> pd.DataFrame:
+    """Transform a dataset with differential privacy.
+
+    Convenience function for quick dataset transformations.
+
+    Args:
+        df: Input DataFrame.
+        epsilon: Global privacy parameter.
+        columns_to_protect: Columns to protect (None = all except excluded).
+        columns_to_exclude: Columns to exclude from output.
+        progress_callback: Optional progress callback.
+
+    Returns:
+        Transformed DataFrame.
+    """
+    transformer = DatasetTransformer()
+    result = transformer.transform_with_budget(
+        df=df,
+        total_epsilon=epsilon,
+        columns_to_protect=columns_to_protect,
+        columns_to_exclude=columns_to_exclude,
+        progress_callback=progress_callback,
+    )
+    return result.data

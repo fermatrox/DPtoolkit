@@ -14,15 +14,24 @@ from dp_toolkit.data.transformer import (
     # Enums
     MechanismType,
     TransformColumnType,
-    # Data classes
+    ProtectionMode,
+    # Data classes - Column
     ColumnConfig,
     TransformResult,
-    # Transformer class
+    # Data classes - Dataset
+    DatasetColumnConfig,
+    DatasetConfig,
+    ColumnTransformSummary,
+    DatasetTransformResult,
+    # Transformer classes
     ColumnTransformer,
-    # Convenience functions
+    DatasetTransformer,
+    # Convenience functions - Column
     transform_numeric,
     transform_categorical,
     transform_date,
+    # Convenience functions - Dataset
+    transform_dataset,
 )
 from dp_toolkit.data.profiler import (
     # Enums
@@ -67,7 +76,7 @@ __all__ = [
     "load_csv",
     "load_excel",
     "load_parquet",
-    # Transformer
+    # Transformer - Column
     "MechanismType",
     "TransformColumnType",
     "ColumnConfig",
@@ -76,6 +85,14 @@ __all__ = [
     "transform_numeric",
     "transform_categorical",
     "transform_date",
+    # Transformer - Dataset
+    "ProtectionMode",
+    "DatasetColumnConfig",
+    "DatasetConfig",
+    "ColumnTransformSummary",
+    "DatasetTransformResult",
+    "DatasetTransformer",
+    "transform_dataset",
     # Profiler - Enums
     "ProfileType",
     # Profiler - Numeric
