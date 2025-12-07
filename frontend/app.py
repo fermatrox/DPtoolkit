@@ -21,6 +21,7 @@ from utils.session import initialize_session_state, clear_session_data  # noqa: 
 from utils.config import PAGE_CONFIG  # noqa: E402
 from pages.upload import render_upload_page  # noqa: E402
 from pages.configure import render_configure_page  # noqa: E402
+from pages.analyze import render_analyze_page  # noqa: E402
 
 
 # =============================================================================
@@ -219,50 +220,6 @@ def render_main_content() -> None:
 # =============================================================================
 # Page Placeholders (to be replaced with actual implementations)
 # =============================================================================
-
-
-def render_analyze_page() -> None:
-    """Render the analyze page (placeholder)."""
-    st.header("Step 3: Analyze Results")
-
-    if not st.session_state.get("config_complete", False):
-        st.warning("Please configure privacy settings first.")
-        if st.button("Go to Configure"):
-            st.session_state.current_step = 2
-            st.rerun()
-        return
-
-    st.markdown("Compare original and protected data to understand the impact of DP.")
-
-    st.info("*Full analysis functionality will be implemented in Step 7.4*")
-
-    # Placeholder tabs
-    tab1, tab2, tab3 = st.tabs(["Summary", "Per-Column", "Correlations"])
-
-    with tab1:
-        st.markdown("### Dataset Summary")
-        col1, col2, col3 = st.columns(3)
-        with col1:
-            eps = st.session_state.get("total_epsilon", 0)
-            st.metric("Total Epsilon", f"{eps:.2f}")
-        with col2:
-            st.metric("Columns Protected", "N/A")
-        with col3:
-            st.metric("Overall Utility", "N/A")
-
-    with tab2:
-        st.markdown("### Per-Column Analysis")
-        st.markdown("*Coming in Step 7.4*")
-
-    with tab3:
-        st.markdown("### Correlation Preservation")
-        st.markdown("*Coming in Step 7.4*")
-
-    # Enable navigation
-    if st.button("Continue to Export", type="primary"):
-        st.session_state.transform_complete = True
-        st.session_state.current_step = 4
-        st.rerun()
 
 
 def render_export_page() -> None:
