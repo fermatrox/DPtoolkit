@@ -7,10 +7,18 @@ privacy to healthcare datasets.
 Run with: streamlit run frontend/app.py
 """
 
-import streamlit as st
+import sys
+from pathlib import Path
 
-from frontend.utils.session import initialize_session_state, clear_session_data
-from frontend.utils.config import PAGE_CONFIG
+# Add frontend directory to path for imports
+frontend_dir = Path(__file__).parent
+if str(frontend_dir) not in sys.path:
+    sys.path.insert(0, str(frontend_dir))
+
+import streamlit as st  # noqa: E402
+
+from utils.session import initialize_session_state, clear_session_data  # noqa: E402
+from utils.config import PAGE_CONFIG  # noqa: E402
 
 
 # =============================================================================
