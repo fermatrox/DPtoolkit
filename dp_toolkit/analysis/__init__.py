@@ -28,27 +28,57 @@ from dp_toolkit.analysis.comparator import (
     calculate_rmse,
     calculate_mape,
 )
+from dp_toolkit.analysis.divergence import (
+    # Enums
+    DivergenceType,
+    # Data classes
+    DivergenceResult,
+    CategoryDriftResult,
+    NumericDistributionComparison,
+    # Core divergence functions
+    kl_divergence,
+    js_distance,
+    js_divergence,
+    wasserstein_distance,
+    total_variation_distance,
+    hellinger_distance,
+    # Entropy functions
+    entropy,
+    cross_entropy,
+    # Utility functions
+    series_to_distribution,
+    numeric_to_histogram,
+    # Analysis functions
+    analyze_category_drift,
+    compare_numeric_distributions,
+    # Convenience functions
+    calculate_kl_divergence,
+    calculate_js_distance,
+    calculate_wasserstein_distance,
+    calculate_tvd,
+    calculate_all_divergences,
+)
 
 __all__ = [
-    # Enums
+    # Comparator - Enums
     "ComparisonType",
-    # Data classes - Numeric
+    # Comparator - Data classes - Numeric
     "NumericDivergence",
     "NumericComparison",
-    # Data classes - Categorical
+    # Comparator - Data classes - Categorical
     "CategoricalDivergence",
     "CategoricalComparison",
-    # Data classes - Date
+    # Comparator - Data classes - Date
     "DateDivergence",
     "DateComparison",
-    # Data classes - Correlation
+    # Comparator - Data classes - Correlation
     "CorrelationPreservation",
-    # Data classes - Dataset
+    # Comparator - Data classes - Dataset
     "DatasetComparison",
-    # Comparator classes
+    # Comparator - classes
     "ColumnComparator",
     "DatasetComparator",
-    # Convenience functions
+    # Comparator - Convenience functions
     "compare_numeric_column",
     "compare_categorical_column",
     "compare_date_column",
@@ -56,4 +86,32 @@ __all__ = [
     "calculate_mae",
     "calculate_rmse",
     "calculate_mape",
+    # Divergence - Enums
+    "DivergenceType",
+    # Divergence - Data classes
+    "DivergenceResult",
+    "CategoryDriftResult",
+    "NumericDistributionComparison",
+    # Divergence - Core functions
+    "kl_divergence",
+    "js_distance",
+    "js_divergence",
+    "wasserstein_distance",
+    "total_variation_distance",
+    "hellinger_distance",
+    # Divergence - Entropy functions
+    "entropy",
+    "cross_entropy",
+    # Divergence - Utility functions
+    "series_to_distribution",
+    "numeric_to_histogram",
+    # Divergence - Analysis functions
+    "analyze_category_drift",
+    "compare_numeric_distributions",
+    # Divergence - Convenience functions
+    "calculate_kl_divergence",
+    "calculate_js_distance",
+    "calculate_wasserstein_distance",
+    "calculate_tvd",
+    "calculate_all_divergences",
 ]

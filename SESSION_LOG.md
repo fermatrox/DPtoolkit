@@ -379,21 +379,71 @@
 | 4.3 | 44 | 580 |
 | 5.1 | 65 | 645 |
 
+#### Step 5.2: Advanced Divergence Metrics
+- Implemented `dp_toolkit/analysis/divergence.py` with:
+- `DivergenceType` enum (KL, JS, WASSERSTEIN, TVD)
+- `DivergenceResult` dataclass for metric results
+- `CategoryDriftResult` dataclass:
+  - drift_rate, kl_divergence, js_distance, tvd
+  - wasserstein (optional for ordinal)
+  - entropy comparison, top category changes
+- `NumericDistributionComparison` dataclass:
+  - wasserstein, ks_statistic, ks_pvalue
+  - kl_divergence, js_distance (histogram-based)
+  - mean_shift (normalized), std_ratio
+- Core divergence functions:
+  - `kl_divergence()` with smoothing for zero probabilities
+  - `js_distance()` and `js_divergence()` using scipy
+  - `wasserstein_distance()` wrapping scipy
+  - `total_variation_distance()` (TVD)
+  - `hellinger_distance()`
+- Entropy functions: `entropy()`, `cross_entropy()`
+- Utility functions: `series_to_distribution()`, `numeric_to_histogram()`
+- Analysis functions:
+  - `analyze_category_drift()` for categorical drift analysis
+  - `compare_numeric_distributions()` for numeric distribution comparison
+- Convenience functions: calculate_kl_divergence, calculate_js_distance,
+  calculate_wasserstein_distance, calculate_tvd, calculate_all_divergences
+- 73 new tests (718 total) including:
+  - Mathematical accuracy vs scipy (KL, JS, Wasserstein)
+  - Symmetry tests (JS, TVD, Hellinger)
+  - Edge cases (zero probabilities, empty, unicode)
+  - Mathematical properties (triangle inequality, chain rule)
+
+### Test Summary
+| Step | New Tests | Total Tests |
+|------|-----------|-------------|
+| 1.1 | 0 | 0 |
+| 1.2 | 26 | 26 |
+| 1.3 | 27 | 53 |
+| 2.1 | 42 | 95 |
+| 2.2 | 78 | 173 |
+| 2.3 | 42 | 215 |
+| 3.1 | 55 | 270 |
+| 3.2 | 56 | 326 |
+| 3.3 | 38 | 364 |
+| 3.4 | 74 | 438 |
+| 4.1 | 64 | 502 |
+| 4.2 | 34 | 536 |
+| 4.3 | 44 | 580 |
+| 5.1 | 65 | 645 |
+| 5.2 | 73 | 718 |
+
 ### Current State
-- All 645 tests passing
+- All 718 tests passing
 - Linting clean (flake8, black, mypy)
 - Phase 1 (Foundation) complete
 - Phase 2 (Statistical Profiling) complete
 - Phase 3 (DP Mechanisms) complete
 - Phase 4 (Transformation Pipeline) complete
-- Phase 5 Step 5.1 (Analysis & Comparison) complete
+- Phase 5 Steps 5.1-5.2 (Analysis & Comparison) complete
 
 ### Next Step
-**Step 5.2: Advanced Divergence Metrics**
-- Implement KL divergence (with smoothing)
-- Jensen-Shannon distance
-- Wasserstein distance
-- Category drift metric
+**Step 5.3: Visualization Generator**
+- Implement `dp_toolkit/analysis/visualizer.py`
+- Overlay histograms (original vs protected)
+- Correlation heatmaps with diff
+- Use plotly for interactive charts
 
 ### Open Issues / Decisions Needed
 None currently.
