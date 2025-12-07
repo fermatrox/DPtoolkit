@@ -33,6 +33,21 @@ from dp_toolkit.data.transformer import (
     # Convenience functions - Dataset
     transform_dataset,
 )
+from dp_toolkit.data.exporter import (
+    # Enums
+    ExportFormat,
+    # Data classes
+    ExportMetadata,
+    ExportResult,
+    # Exporter class
+    DataExporter,
+    # Convenience functions
+    export_csv,
+    export_excel,
+    export_parquet,
+    export_data,
+    read_export_metadata,
+)
 from dp_toolkit.data.profiler import (
     # Enums
     ProfileType,
@@ -93,6 +108,16 @@ __all__ = [
     "DatasetTransformResult",
     "DatasetTransformer",
     "transform_dataset",
+    # Exporter
+    "ExportFormat",
+    "ExportMetadata",
+    "ExportResult",
+    "DataExporter",
+    "export_csv",
+    "export_excel",
+    "export_parquet",
+    "export_data",
+    "read_export_metadata",
     # Profiler - Enums
     "ProfileType",
     # Profiler - Numeric

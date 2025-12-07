@@ -263,6 +263,40 @@
   - Progress callback tests
   - Edge cases (empty, single column, performance)
 
+#### Step 4.3: Data Exporter
+- Implemented `dp_toolkit/data/exporter.py` with:
+- `ExportFormat` enum (CSV, EXCEL, PARQUET)
+- `ExportMetadata` dataclass:
+  - export_timestamp, row/column counts
+  - total_epsilon, total_delta
+  - protected/passthrough/excluded column lists
+  - per-column metadata (mechanism, epsilon, delta)
+  - to_dict(), to_json(), from_json() methods
+  - from_transform_result() factory method
+- `ExportResult` dataclass with export details
+- `DataExporter` class:
+  - `export_csv()` - CSV with optional JSON sidecar metadata
+  - `export_excel()` - XLSX with optional Metadata sheet
+  - `export_parquet()` - Parquet with embedded PyArrow metadata
+  - `export()` - Generic entry point with format auto-detection
+- `read_export_metadata()` function:
+  - Reads metadata from all formats
+  - CSV: sidecar JSON file
+  - Excel: Metadata sheet with NaN handling
+  - Parquet: embedded schema metadata
+- Convenience functions: `export_csv()`, `export_excel()`, `export_parquet()`, `export_data()`
+- Key features:
+  - Column order preservation
+  - Data type preservation (via Parquet)
+  - Privacy metadata embedding
+  - Round-trip integrity with loader module
+- 44 new tests (580 total) including:
+  - Export metadata tests
+  - CSV/Excel/Parquet export tests
+  - Round-trip tests
+  - Type and column order preservation
+  - Edge cases (empty, single row/column, special characters)
+
 ### Test Summary
 | Step | New Tests | Total Tests |
 |------|-----------|-------------|
@@ -278,21 +312,22 @@
 | 3.4 | 74 | 438 |
 | 4.1 | 64 | 502 |
 | 4.2 | 34 | 536 |
+| 4.3 | 44 | 580 |
 
 ### Current State
-- All 536 tests passing
+- All 580 tests passing
 - Linting clean (flake8, black, mypy)
 - Phase 1 (Foundation) complete
 - Phase 2 (Statistical Profiling) complete
 - Phase 3 (DP Mechanisms) complete
-- Phase 4 Steps 4.1-4.2 (Transformation Pipeline) complete
+- Phase 4 (Transformation Pipeline) complete
 
 ### Next Step
-**Step 4.3: Data Exporter**
-- Implement `dp_toolkit/data/exporter.py`
-- Export to CSV, Excel, Parquet
-- Include metadata in export
-- Preserve column order and types
+**Phase 5: Streamlit Frontend**
+- Implement `frontend/app.py` with multi-page wizard
+- File upload and profiling pages
+- Configuration and protection pages
+- Export functionality
 
 ### Open Issues / Decisions Needed
 None currently.
