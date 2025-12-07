@@ -98,6 +98,13 @@ Thumbs.db
 # Project-specific
 test_data/
 
+# Output files (keep directory structure)
+output/datasets/*
+output/reports/*
+!output/.gitkeep
+!output/datasets/.gitkeep
+!output/reports/.gitkeep
+
 # Streamlit
 .streamlit/secrets.toml
 

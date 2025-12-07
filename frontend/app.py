@@ -19,6 +19,7 @@ import streamlit as st  # noqa: E402
 
 from utils.session import initialize_session_state, clear_session_data  # noqa: E402
 from utils.config import PAGE_CONFIG  # noqa: E402
+from pages.upload import render_upload_page  # noqa: E402
 
 
 # =============================================================================
@@ -217,39 +218,6 @@ def render_main_content() -> None:
 # =============================================================================
 # Page Placeholders (to be replaced with actual implementations)
 # =============================================================================
-
-
-def render_upload_page() -> None:
-    """Render the upload page (placeholder)."""
-    st.header("Step 1: Upload Data")
-    st.markdown("Upload your dataset to apply differential privacy protection.")
-
-    st.info(
-        "Supported formats: CSV, Excel (.xlsx, .xls), Parquet\n\n"
-        "**Note:** Data is processed in memory only and never persisted to disk."
-    )
-
-    # Placeholder for file uploader
-    uploaded_file = st.file_uploader(
-        "Choose a file",
-        type=["csv", "xlsx", "xls", "parquet"],
-        help="Upload a dataset to apply differential privacy",
-    )
-
-    if uploaded_file is not None:
-        st.success(f"File uploaded: {uploaded_file.name}")
-        st.markdown("*Full upload functionality will be implemented in Step 7.2*")
-
-        # Enable navigation to next step (for testing)
-        if st.button("Continue to Configure", type="primary"):
-            st.session_state.dataset_loaded = True
-            st.session_state.dataset_info = {
-                "filename": uploaded_file.name,
-                "row_count": 0,
-                "column_count": 0,
-            }
-            st.session_state.current_step = 2
-            st.rerun()
 
 
 def render_configure_page() -> None:
