@@ -250,7 +250,8 @@ def create_correlation_heatmap(
     # Colorbar
     fig.colorbar(im2, ax=[ax1, ax2], shrink=0.8)
 
-    plt.tight_layout()
+    # Note: skip tight_layout() as it conflicts with multi-axis colorbar
+    # bbox_inches="tight" in savefig() handles layout properly
 
     buffer = io.BytesIO()
     fig.savefig(buffer, format="png", dpi=dpi, bbox_inches="tight")
