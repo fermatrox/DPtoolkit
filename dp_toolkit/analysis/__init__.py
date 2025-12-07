@@ -58,6 +58,33 @@ from dp_toolkit.analysis.divergence import (
     calculate_tvd,
     calculate_all_divergences,
 )
+from dp_toolkit.analysis.visualizer import (
+    # Enums
+    ChartType,
+    # Data classes
+    ChartConfig,
+    # Histogram visualizations
+    create_histogram_overlay,
+    create_histogram_sidebyside,
+    # Correlation heatmaps
+    create_correlation_heatmap,
+    create_correlation_diff_heatmap,
+    create_correlation_comparison,
+    # Category visualizations
+    create_category_bar_chart,
+    create_category_drift_chart,
+    # Box plot visualizations
+    create_box_comparison,
+    create_multi_box_comparison,
+    # Summary visualizations
+    create_divergence_summary_chart,
+    create_column_comparison_summary,
+    # Scatter plots
+    create_scatter_comparison,
+    create_qq_plot,
+    # Dashboard
+    ComparisonDashboard,
+)
 
 __all__ = [
     # Comparator - Enums
@@ -114,4 +141,29 @@ __all__ = [
     "calculate_wasserstein_distance",
     "calculate_tvd",
     "calculate_all_divergences",
+    # Visualizer - Enums
+    "ChartType",
+    # Visualizer - Data classes
+    "ChartConfig",
+    # Visualizer - Histogram visualizations
+    "create_histogram_overlay",
+    "create_histogram_sidebyside",
+    # Visualizer - Correlation heatmaps
+    "create_correlation_heatmap",
+    "create_correlation_diff_heatmap",
+    "create_correlation_comparison",
+    # Visualizer - Category visualizations
+    "create_category_bar_chart",
+    "create_category_drift_chart",
+    # Visualizer - Box plot visualizations
+    "create_box_comparison",
+    "create_multi_box_comparison",
+    # Visualizer - Summary visualizations
+    "create_divergence_summary_chart",
+    "create_column_comparison_summary",
+    # Visualizer - Scatter plots
+    "create_scatter_comparison",
+    "create_qq_plot",
+    # Visualizer - Dashboard
+    "ComparisonDashboard",
 ]
