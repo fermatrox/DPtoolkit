@@ -4,6 +4,8 @@ Provides functionality to load datasets from various file formats
 with automatic column type detection.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from enum import Enum
 from pathlib import Path
@@ -466,7 +468,8 @@ class DataLoader:
             # If more than 80% parse successfully, consider it a date column
             success_rate = float(parsed.notna().sum()) / len(sample)
             return bool(success_rate >= 0.8)
-        except Exception:
+        except (ValueError, TypeError, OverflowError):
+            # Parsing failed - not a date column
             return False
 
 

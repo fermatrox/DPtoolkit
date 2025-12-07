@@ -633,7 +633,8 @@ def read_export_metadata(path: Union[str, Path]) -> Optional[ExportMetadata]:
                         ),
                         format=str(meta_dict.get("Format", "excel")),
                     )
-        except Exception:
+        except (KeyError, ValueError, TypeError):
+            # Metadata parsing failed - file may not have valid metadata
             pass
         return None
 
@@ -647,7 +648,8 @@ def read_export_metadata(path: Union[str, Path]) -> Optional[ExportMetadata]:
             if schema_meta and b"dp_toolkit_metadata" in schema_meta:
                 json_str = schema_meta[b"dp_toolkit_metadata"].decode("utf-8")
                 return ExportMetadata.from_json(json_str)
-        except Exception:
+        except (ImportError, KeyError, ValueError, OSError):
+            # Metadata reading failed - pyarrow not available or invalid file
             pass
         return None
 

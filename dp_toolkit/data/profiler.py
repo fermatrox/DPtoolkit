@@ -4,6 +4,8 @@ Provides comprehensive statistical analysis for dataset columns,
 supporting numeric, categorical, and date types.
 """
 
+from __future__ import annotations
+
 from dataclasses import dataclass, field
 from datetime import datetime
 from enum import Enum

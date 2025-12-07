@@ -624,7 +624,8 @@ def compare_numeric_distributions(
 
         kl = kl_divergence(orig_probs, prot_probs, base="2")
         js = js_distance(orig_probs, prot_probs, base="2")
-    except Exception:
+    except (ValueError, ZeroDivisionError, FloatingPointError):
+        # Histogram calculation failed - insufficient data or numerical issues
         pass
 
     # Mean shift (normalized by original std)
