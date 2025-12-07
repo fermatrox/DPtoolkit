@@ -22,6 +22,7 @@ from utils.config import PAGE_CONFIG  # noqa: E402
 from pages.upload import render_upload_page  # noqa: E402
 from pages.configure import render_configure_page  # noqa: E402
 from pages.analyze import render_analyze_page  # noqa: E402
+from pages.export import render_export_page  # noqa: E402
 
 
 # =============================================================================
@@ -215,53 +216,6 @@ def render_main_content() -> None:
         render_export_page()
     else:
         st.error("Unknown step")
-
-
-# =============================================================================
-# Page Placeholders (to be replaced with actual implementations)
-# =============================================================================
-
-
-def render_export_page() -> None:
-    """Render the export page (placeholder)."""
-    st.header("Step 4: Export Results")
-
-    if not st.session_state.get("transform_complete", False):
-        st.warning("Please complete the analysis first.")
-        if st.button("Go to Analyze"):
-            st.session_state.current_step = 3
-            st.rerun()
-        return
-
-    st.markdown("Export your protected dataset and generate reports.")
-
-    st.info("*Full export functionality will be implemented in Step 7.5*")
-
-    # Placeholder export options
-    st.subheader("Export Options")
-
-    col1, col2 = st.columns(2)
-
-    with col1:
-        st.markdown("**Protected Dataset**")
-        st.selectbox(
-            "Format",
-            ["CSV", "Excel", "Parquet"],
-            help="Choose the output format for your protected dataset",
-        )
-        st.button("Download Dataset", disabled=True)
-
-    with col2:
-        st.markdown("**Analysis Report**")
-        st.markdown("PDF report with privacy settings and statistical comparisons")
-        st.button("Generate Report", disabled=True)
-
-    st.markdown("---")
-    st.success("Workflow complete! You can now start over with a new dataset.")
-
-    if st.button("Start New Session", type="primary"):
-        clear_session_data()
-        st.rerun()
 
 
 # =============================================================================
