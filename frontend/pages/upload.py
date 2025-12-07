@@ -225,7 +225,7 @@ def render_dataset_preview(df: pd.DataFrame) -> None:
     preview_rows = min(MAX_PREVIEW_ROWS, len(df))
     st.dataframe(
         df.head(preview_rows),
-        use_container_width=True,
+        width="stretch",
         height=400,
     )
 
@@ -275,7 +275,7 @@ def render_column_summary(dataset_info: DatasetInfo) -> None:
     # Color-code by type
     st.dataframe(
         col_df,
-        use_container_width=True,
+        width="stretch",
         hide_index=True,
     )
 
@@ -423,7 +423,7 @@ def render_upload_page() -> None:
             "Continue to Configure",
             type="primary",
             disabled=not is_valid,
-            use_container_width=True,
+            width="stretch",
         ):
             # Store in session state
             st.session_state.original_df = df

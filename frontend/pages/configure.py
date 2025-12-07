@@ -193,7 +193,7 @@ def render_auto_recommend_button(df: pd.DataFrame, columns: List[str]) -> None:
         if st.button(
             "Auto-Recommend Settings",
             type="primary",
-            use_container_width=True,
+            width="stretch",
             help="Analyze columns and recommend privacy settings",
         ):
             with st.spinner("Analyzing columns..."):
@@ -480,7 +480,7 @@ def render_navigation_buttons() -> None:
     col1, col2, col3 = st.columns([1, 1, 1])
 
     with col1:
-        if st.button("← Back to Upload", use_container_width=True):
+        if st.button("← Back to Upload", width="stretch"):
             st.session_state.current_step = 1
             st.rerun()
 
@@ -491,7 +491,7 @@ def render_navigation_buttons() -> None:
             "Apply & Continue →",
             type="primary",
             disabled=not is_valid,
-            use_container_width=True,
+            width="stretch",
         ):
             # Store final configuration
             configs = get_column_configs()
