@@ -12,6 +12,8 @@ import pandas as pd
 import streamlit as st
 
 from utils.session import clear_session_data
+from dp_toolkit.reports import PDFReportGenerator, ReportMetadata
+from dp_toolkit.analysis.comparator import DatasetComparison
 
 
 # =============================================================================
@@ -37,6 +39,11 @@ def get_column_configs() -> Dict[str, Dict[str, Any]]:
 def get_dataset_info() -> Dict[str, Any]:
     """Get dataset info from session state."""
     return cast(Dict[str, Any], st.session_state.get("dataset_info", {}))
+
+
+def get_comparison_results() -> Optional[DatasetComparison]:
+    """Get comparison results from session state."""
+    return st.session_state.get("comparison_results")
 
 
 # =============================================================================
@@ -329,19 +336,99 @@ def render_export_options(
     )
 
 
-def render_pdf_report_section() -> None:
-    """Render PDF report generation section (placeholder for Phase 8)."""
-    st.markdown("### Generate Report")
-
-    st.info(
-        "PDF report generation will be available in a future update. "
-        "The report will include:\n"
-        "- Privacy configuration summary\n"
-        "- Statistical comparison charts\n"
-        "- Compliance documentation"
+def generate_pdf_bytes(
+    original_df: pd.DataFrame,
+    protected_df: pd.DataFrame,
+    comparison: DatasetComparison,
+    column_configs: Dict[str, Dict[str, Any]],
+    dataset_info: Dict[str, Any],
+) -> bytes:
+    """Generate PDF report as bytes."""
+    metadata = ReportMetadata(
+        title="Differential Privacy Analysis Report",
+        original_filename=dataset_info.get("filename"),
     )
 
-    st.button("Generate PDF Report", disabled=True)
+    generator = PDFReportGenerator()
+    report = generator.generate(
+        original_df=original_df,
+        protected_df=protected_df,
+        comparison=comparison,
+        column_configs=column_configs,
+        metadata=metadata,
+        dataset_info=dataset_info,
+    )
+
+    return report.content
+
+
+def render_pdf_report_section(
+    original_df: pd.DataFrame,
+    protected_df: pd.DataFrame,
+    column_configs: Dict[str, Dict[str, Any]],
+    dataset_info: Dict[str, Any],
+) -> None:
+    """Render PDF report generation section."""
+    st.markdown("### Generate Report")
+
+    comparison = get_comparison_results()
+
+    if comparison is None:
+        st.warning(
+            "Comparison results not available. "
+            "Please run the analysis again to generate a PDF report."
+        )
+        return
+
+    st.markdown(
+        "Generate a comprehensive PDF report including:\n"
+        "- Executive summary with privacy assessment\n"
+        "- Configuration details per column\n"
+        "- Statistical comparison tables\n"
+        "- Distribution and correlation visualizations"
+    )
+
+    # Generate filename
+    original_name = dataset_info.get("filename", "dataset")
+    if "." in original_name:
+        base_name = original_name.rsplit(".", 1)[0]
+    else:
+        base_name = original_name
+    timestamp = datetime.now().strftime("%Y%m%d_%H%M%S")
+    pdf_filename = f"{base_name}_privacy_report_{timestamp}.pdf"
+
+    # Generate PDF button
+    if st.button("Generate PDF Report", type="secondary"):
+        with st.spinner("Generating PDF report..."):
+            try:
+                pdf_bytes = generate_pdf_bytes(
+                    original_df=original_df,
+                    protected_df=protected_df,
+                    comparison=comparison,
+                    column_configs=column_configs,
+                    dataset_info=dataset_info,
+                )
+                st.session_state["pdf_report"] = pdf_bytes
+                st.session_state["pdf_filename"] = pdf_filename
+                st.success("PDF report generated successfully!")
+            except Exception as e:
+                st.error(f"Error generating PDF: {e}")
+                return
+
+    # Download button (if PDF was generated)
+    if "pdf_report" in st.session_state:
+        pdf_bytes = st.session_state["pdf_report"]
+        filename = st.session_state.get("pdf_filename", "report.pdf")
+
+        file_size_kb = len(pdf_bytes) / 1024
+        st.markdown(f"**Report size:** {file_size_kb:.1f} KB")
+
+        st.download_button(
+            label="Download PDF Report",
+            data=pdf_bytes,
+            file_name=filename,
+            mime="application/pdf",
+        )
 
 
 def render_session_actions() -> None:
@@ -391,11 +478,12 @@ def render_export_page() -> None:
         return
 
     # Get data from session
+    original_df = get_original_df()
     protected_df = get_protected_df()
     column_configs = get_column_configs()
     dataset_info = get_dataset_info()
 
-    if protected_df is None:
+    if protected_df is None or original_df is None:
         st.error(
             "Protected dataset not found. Please run the analysis again."
         )
@@ -421,8 +509,8 @@ def render_export_page() -> None:
 
     st.markdown("---")
 
-    # PDF report placeholder
-    render_pdf_report_section()
+    # PDF report section
+    render_pdf_report_section(original_df, protected_df, column_configs, dataset_info)
 
     # Session actions
     render_session_actions()
