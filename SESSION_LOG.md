@@ -477,8 +477,66 @@
   - Edge cases (empty, nulls, unicode, large datasets)
   - Data accuracy verification
 
+### Test Summary
+| Step | New Tests | Total Tests |
+|------|-----------|-------------|
+| 1.1 | 0 | 0 |
+| 1.2 | 26 | 26 |
+| 1.3 | 27 | 53 |
+| 2.1 | 42 | 95 |
+| 2.2 | 78 | 173 |
+| 2.3 | 42 | 215 |
+| 3.1 | 55 | 270 |
+| 3.2 | 56 | 326 |
+| 3.3 | 38 | 364 |
+| 3.4 | 74 | 438 |
+| 4.1 | 64 | 502 |
+| 4.2 | 34 | 536 |
+| 4.3 | 44 | 580 |
+| 5.1 | 65 | 645 |
+| 5.2 | 73 | 718 |
+| 5.3 | 52 | 770 |
+| 6.1 | 193 | 963 |
+
+#### Step 6.1: Column Classifier
+- Implemented `dp_toolkit/recommendations/classifier.py` with:
+- `SensitivityLevel` enum (HIGH, MEDIUM, LOW, UNKNOWN)
+- `ClassificationResult` dataclass:
+  - column_name, sensitivity, confidence
+  - matched_pattern, pattern_description
+  - is_override, override_reason
+  - to_dict() for serialization
+- `DatasetClassification` dataclass:
+  - column_results dictionary
+  - high/medium/low/unknown_columns properties
+  - get_columns_by_sensitivity()
+  - to_dict(), to_dataframe() for display
+- `ColumnClassifier` class:
+  - Pattern-based column name classification
+  - Healthcare-specific patterns (HIPAA PHI)
+  - Manual override support (add, remove, clear)
+  - Custom pattern support
+  - Configurable default sensitivity
+- `ContentAnalyzer` class:
+  - Analyzes column content for sensitive patterns
+  - Detects SSN, email, phone, credit card, ZIP formats
+  - Refines classification based on actual data
+- Pattern categories:
+  - HIGH: SSN, names, contact info, addresses, PHI, DOB, financial, demographics
+  - MEDIUM: age, location, dates, healthcare operational, financial operational
+  - LOW: IDs, codes/types, aggregates, descriptions
+- Convenience functions: classify_column, classify_columns, classify_dataset,
+  get_sensitivity_for_column, get_sensitive_columns
+- 193 new tests (963 total) including:
+  - All sensitivity level patterns
+  - Override functionality
+  - Custom pattern support
+  - Content analysis
+  - Edge cases (empty, unicode, long names, special chars)
+  - Performance tests
+
 ### Current State
-- All 770 tests passing
+- All 963 tests passing
 - Linting clean (flake8, black, mypy)
 - Test coverage: 96%
 - Phase 1 (Foundation) complete
@@ -486,12 +544,14 @@
 - Phase 3 (DP Mechanisms) complete
 - Phase 4 (Transformation Pipeline) complete
 - Phase 5 (Analysis & Comparison) complete
+- Phase 6 Step 6.1 (Column Classifier) complete
 
 ### Next Step
-**Step 6.1: Recommendation Engine**
-- Implement `dp_toolkit/recommendations/recommender.py`
-- Auto-recommend epsilon, mechanism per column type
-- Risk-based recommendations
+**Step 6.2: Epsilon Advisor**
+- Implement `dp_toolkit/recommendations/advisor.py`
+- Recommend epsilon values by sensitivity level
+- Recommend mechanisms by data type
+- Provide explanatory text
 
 ### Open Issues / Decisions Needed
 None currently.
